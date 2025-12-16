@@ -17,6 +17,8 @@
   <depend>tf2_ros</depend>
   <depend>robot_interfaces</depend>
   <depend>leg_driver</depend>
+  <depend>kdl_parser</depend>
+  <depend>orocos_kdl</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

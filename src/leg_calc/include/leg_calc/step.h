@@ -1,10 +1,11 @@
 #ifndef __STEP_H__
 #define __STEP_H__
 
-#include "leg.h"
+#include <Eigen/Dense>
 #include <tuple>
 
 typedef Eigen::Vector2d Vector2D;
+typedef Eigen::Vector3d Vector3D;
 
 typedef struct
 {

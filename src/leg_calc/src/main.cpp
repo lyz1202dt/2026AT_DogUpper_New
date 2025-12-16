@@ -1,14 +1,14 @@
+#include <memory>
 #include <rclcpp/rclcpp.hpp>
-#include "mynode.h"
-#include "param.h"
+#include "dog_calc.hpp"
 
-LegParam_t left_back_param;
 
 int main(int argc,char** argv)
 {
     rclcpp::init(argc,argv);
-    LeftBackLegParamInit(&left_back_param);
-    rclcpp::spin(std::make_shared<LegControl>(left_back_param,"left_back_leg"));
+    auto node=std::make_shared<rclcpp::Node>("robot_calc_node");
+    auto robot_calc=std::make_shared<RobotCalcNode>(node);
+    rclcpp::spin(node);
     rclcpp::shutdown();
     return 0;
 }

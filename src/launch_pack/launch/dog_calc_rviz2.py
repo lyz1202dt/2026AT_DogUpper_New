@@ -23,11 +23,6 @@ def generate_launch_description():
         executable="leg_calc"
     )
 
-    leg_driver=Node(
-        package="leg_driver",
-        executable="leg_driver"
-    )
-
     rviz2_config_path=os.path.join(
         get_package_share_directory("launch_pack"),
         "rviz", "display_config.rviz"
@@ -38,4 +33,4 @@ def generate_launch_description():
         executable="rviz2",
         arguments=["-d", rviz2_config_path]  # 可选，指定rviz配置文件
     )
-    return LaunchDescription([leg_driver,robot_state_pub, leg_calc, rviz2])
+    return LaunchDescription([robot_state_pub, leg_calc, rviz2])

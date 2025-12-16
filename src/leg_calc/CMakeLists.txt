@@ -21,6 +21,8 @@ find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(robot_interfaces REQUIRED)
 find_package(leg_driver REQUIRED)
+find_package(kdl_parser REQUIRED)
+find_package(orocos_kdl REQUIRED)
 
 find_package(Eigen3 REQUIRED PATHS /usr/include/eigen3)
 
@@ -38,9 +40,8 @@ endif()
 
 add_executable(leg_calc
 src/main.cpp
-src/param.cpp
-src/leg.cpp
-src/mynode.cpp
+src/leg_calc.cpp
+src/dog_ctrl.cpp
 src/step.cpp
 src/vmc.cpp)
 
@@ -66,6 +67,8 @@ ament_target_dependencies(
   tf2_ros
   robot_interfaces
   leg_driver
+  kdl_parser
+  kdl_parser
 )
 
 install(TARGETS
