@@ -1,4 +1,5 @@
 #include "leg_calc.hpp"
+#include <Eigen/src/Core/Matrix.h>
 #include <chrono>
 #include <kdl/chainiksolverpos_lma.hpp>
 #include <kdl/frames.hpp>
@@ -12,48 +13,45 @@ LegCalc::LegCalc(KDL::Chain& chain)
     , fk_solver(chain)
     , jacobain_solver(chain)
     , vel_solver(chain)
+    ,ik_pos_solver(chain, Eigen::Vector<double,6>(1.0, 1.0, 1.0, 0.0, 0.0, 0.0),1e-6,150,1e-10)
     , dynamin_solver(chain, KDL::Vector(0, 0, -9.81))
     , force_solver(chain){
-
-    Eigen::Vector<double,6> ik_weights;
-    ik_weights << 1.0, 1.0, 1.0, 0.0, 0.0, 0.0;
-    ik_pos_solver =new KDL::ChainIkSolverPos_LMA(chain, ik_weights,1e-5,200,1e-10);
+    _temp_joint3_array.resize(3);   //提前resize需要用到的KDL::JntArray防止运行时频繁申请/释放内存
+    _temp2_joint3_array.resize(3);
+    last_exp_joint_pos.resize(3);
 }
 
-LegCalc::~LegCalc() {}
+LegCalc::~LegCalc() {
 
-void LegCalc::set_leg_state(KDL::JntArray& rad, KDL::JntArray& omega, KDL::JntArray& torque) {
-    cur_joint_pos    = rad;
-    cur_joint_vel    = omega;
-    cur_joint_torque = torque;
-    control_tick=control_tick+1;
 }
 
-int LegCalc::joint_pos(KDL::JntArray& joint_rad, KDL::Vector& foot_pos, KDL::JntArray& result) {
-    //之后加载解析求解器
-    return 0;
+void set_leg_state(KDL::JntArray &rad, KDL::JntArray &omega, KDL::JntArray &torque)
+{
+
 }
 
-int LegCalc::joint_pos(KDL::Vector& foot_pos, KDL::JntArray& result) {
+Eigen::Vector3d LegCalc::joint_pos(Eigen::Vector3d &foot_pos,int *result) {
     KDL::Frame frame;
-    frame.p=foot_pos;
-    // frame.p.x(frame.p.x()+pos_offset[0]);
-    // frame.p.y(frame.p.y()+pos_offset[1]);
-    // frame.p.z(frame.p.z()+pos_offset[2]);
-    RCLCPP_INFO(rclcpp::get_logger("leg_calc"),"期望位置:(%lf,%lf,%lf)",frame.p.x(),frame.p.y(),frame.p.z());
+    Eigen::Vector3d temp=foot_pos+pos_offset;
+    frame.p.x(temp[0]);
+    frame.p.y(temp[1]);
+    frame.p.z(temp[2]);
     frame.M=KDL::Rotation::Identity();
-    return ik_pos_solver->CartToJnt(cur_joint_pos, KDL::Frame(foot_pos), result);
+    
+    *result= ik_pos_solver.CartToJnt(last_exp_joint_pos, frame,_temp_joint3_array);
+    if(*result==0)  //缓存本次计算结果,方便下一次迭代
+        last_exp_joint_pos=_temp_joint3_array;
+    return {_temp_joint3_array(0),_temp_joint3_array(1),_temp_joint3_array(2)};
 }
 
-void LegCalc::joint_vel(KDL::JntArray &joint_rad, KDL::Vector &foot_vel,KDL::JntArray &result) {
+Eigen::Vector3d LegCalc::joint_vel(Eigen::Vector3d &joint_rad, Eigen::Vector3d &foot_vel) {
     KDL::Jacobian temp_jac;
-    jacobain_solver.JntToJac(joint_rad,temp_jac);
+    _temp_joint3_array(0)=joint_rad[0];
+    _temp_joint3_array(1)=joint_rad[1];
+    _temp_joint3_array(2)=joint_rad[2];
+    jacobain_solver.JntToJac(_temp_joint3_array,temp_jac);
     Eigen::Matrix<double, 3, 3> jacobian = get_3x3_jacobian_(temp_jac);
-    Eigen::Vector3d foot_vel_eigen(foot_vel.x(),foot_vel.y(),foot_vel.z());
-    auto result_eigen=jacobian.inverse()*foot_vel_eigen;
-    result(0)=result_eigen[0];
-    result(1)=result_eigen[1];
-    result(2)=result_eigen[2];
+    return jacobian.inverse()*foot_vel;
 }
 
 Eigen::Matrix<double, 3, 3> LegCalc::get_3x3_jacobian_(KDL::Jacobian &full_jacobian)     //只关心前三行的映射关系
@@ -67,67 +65,102 @@ Eigen::Matrix<double, 3, 3> LegCalc::get_3x3_jacobian_(KDL::Jacobian &full_jacob
     return jacobian_3x3;
 }
 
-
-void LegCalc::joint_torque(
-    KDL::JntArray &joint_rad, KDL::JntArray &joint_vel, KDL::JntArray &joint_acc,KDL::Vector &result) {
-    dynamin_solver.JntToGravity(joint_rad, G);
-    dynamin_solver.JntToCoriolis(joint_rad, joint_vel, C);
-    dynamin_solver.JntToMass(joint_rad, M);
+Eigen::Vector3d LegCalc::joint_torque_dynamic(const Eigen::Vector3d &joint_rad, const Eigen::Vector3d &joint_omega, const Eigen::Vector3d &joint_acc) {
+    _temp_joint3_array(0)=joint_rad[0];
+    _temp_joint3_array(1)=joint_rad[1];
+    _temp_joint3_array(2)=joint_rad[2];
+    _temp2_joint3_array(0)=joint_omega[0];
+    _temp2_joint3_array(1)=joint_omega[1];
+    _temp_joint3_array(2)=joint_omega[2];
+    dynamin_solver.JntToGravity(_temp_joint3_array, G);
+    dynamin_solver.JntToCoriolis(_temp_joint3_array, _temp_joint3_array, C);
+    dynamin_solver.JntToMass(_temp_joint3_array, M);
 
     // 6. 转换 KDL 输出到 Eigen，方便矩阵运算
     Eigen::Matrix<double, 3, 3> M_;
-    Eigen::Matrix<double, 3, 1> C_, G_, ddq_;
+    Eigen::Matrix<double, 3, 1> C_, G_;
 
     for (int i = 0; i < 3; ++i) {
         C_(i)   = C(i);
         G_(i)   = G(i);
-        ddq_(i) = joint_acc(i);
         for (int j = 0; j < 3; ++j) {
             M_(i, j) = M(i, j);
         }
     }
     // 7. 计算前馈力矩 tau
-    auto temp=(M_ * ddq_ + C_ + G_);
-    result ={temp(0),temp(1),temp(2)};
+    return M_ * joint_acc + C_ + G_;
 }
 
-void LegCalc::joint_torque_foot_force(KDL::JntArray &joint_rad,KDL::Vector &foot_force,KDL::JntArray result){
+/**
+    @brief 足端期望力->计算关节力矩
+    @param joint_rad 关节角度
+    @param joint_force 关节末端期望力
+    @return 关节空间下的力矩
+ */
+Eigen::Vector3d LegCalc::joint_torque_foot_force(const Eigen::Vector3d &joint_rad,const Eigen::Vector3d &foot_force){
     KDL::Jacobian temp_jac;
-    jacobain_solver.JntToJac(joint_rad,temp_jac);
+    _temp_joint3_array(0)=joint_rad[0];
+    _temp_joint3_array(1)=joint_rad[1];
+    _temp_joint3_array(2)=joint_rad[2];
+    jacobain_solver.JntToJac(_temp_joint3_array,temp_jac);
     Eigen::Matrix<double, 3, 3> jacobian = get_3x3_jacobian_(temp_jac);
     Eigen::Vector3d torque(foot_force(0),foot_force(1),foot_force(2));
-    auto result_eigen=jacobian.transpose()* torque;
-    result(0)=result_eigen[0];
-    result(1)=result_eigen[1];
-    result(2)=result_eigen[2];
+    return jacobian.transpose()* torque;
 }
 
-void LegCalc::foot_force(KDL::JntArray &joint_rad,KDL::JntArray &joint_torque, KDL::Vector &result) {
+/**
+    @brief 计算足端受力
+    @param joint_rad 当前关节角度
+    @param joint_torque 总力矩减去克服重力/科氏力/惯性力剩下的力矩（需要在外部计算）
+    @return 笛卡尔坐标系下的足端受力
+ */
+Eigen::Vector3d LegCalc::foot_force(const Eigen::Vector3d &joint_rad,const Eigen::Vector3d &joint_torque) {
     KDL::Jacobian temp_jac;
-    jacobain_solver.JntToJac(joint_rad,temp_jac);
-    Eigen::Matrix<double, 3, 3> jacobian = get_3x3_jacobian_(temp_jac);
-    Eigen::Vector3d torque(joint_torque(0),joint_torque(1),joint_torque(2));
-    auto result_eigen=jacobian.transpose()* torque;
-    result(0)=result_eigen[0];
-    result(1)=result_eigen[1];
-    result(2)=result_eigen[2];
+    _temp_joint3_array(0)=joint_rad[0];
+    _temp_joint3_array(1)=joint_rad[1];
+    _temp_joint3_array(2)=joint_rad[2];
+
+    jacobain_solver.JntToJac(_temp_joint3_array,temp_jac);
+    auto jacobian = get_3x3_jacobian_(temp_jac);
+    
+    return jacobian.transpose().inverse()*(joint_torque);
 }
 
-void LegCalc::foot_vel(KDL::JntArray &joint_rad, KDL::JntArray &joint_vel, KDL::Vector &result) {
-    KDL::Jacobian temp_jac;    //在一个控制周期内，应首先调用它;
-    jacobain_solver.JntToJac(joint_rad,temp_jac);
-    Eigen::Matrix<double, 3, 3> jacobian = get_3x3_jacobian_(temp_jac);
-    Eigen::Vector3d foot_vel_eigen(joint_vel(0),joint_vel(1),joint_vel(2));
-    auto result_eigen=jacobian*foot_vel_eigen;
-    result(0)=result_eigen[0];
-    result(1)=result_eigen[1];
-    result(2)=result_eigen[2];
+/**
+    @brief 计算足端速度
+    @param joint_rad 当前关节角度
+    @param joint_omega 当前关节角速度
+    @return 当前足端速度
+ */
+Eigen::Vector3d LegCalc::foot_vel(const Eigen::Vector3d &joint_rad, const Eigen::Vector3d &joint_omega) {
+    _temp_joint3_array(0)=joint_rad[0];
+    _temp_joint3_array(1)=joint_rad[1];
+    _temp_joint3_array(2)=joint_rad[2];
+
+    KDL::Jacobian temp_jac;
+    jacobain_solver.JntToJac(_temp_joint3_array,temp_jac);
+
+    auto jacobian = get_3x3_jacobian_(temp_jac);     //提取雅可比矩阵中与位置相关的部分
+    Eigen::Vector3d dq(joint_omega(0),joint_omega(1),joint_omega(2));
+    return jacobian*dq;
 }
 
-void LegCalc::foot_pos(KDL::JntArray& joint_rad, KDL::Vector & result) {
+/**
+    @brief 计算足端位置
+    @param joint_rad 关节角度向量
+    @return 当前足端位置
+ */
+Eigen::Vector3d LegCalc::foot_pos(const Eigen::Vector3d& joint_rad) {
     KDL::Frame frame;
-    fk_solver.JntToCart(joint_rad, frame);
-    result.x(frame.p.x());
-    result.y(frame.p.y());
-    result.z(frame.p.z());
+    _temp_joint3_array(0)=joint_rad[0];  //避免运行时动态分配内存，提高效率
+    _temp_joint3_array(1)=joint_rad[1];
+    _temp_joint3_array(2)=joint_rad[2];
+    fk_solver.JntToCart(_temp_joint3_array, frame);
+
+    Eigen::Vector3d temp;
+    temp[0]=frame.p.x();
+    temp[1]=frame.p.y();
+    temp[2]=frame.p.z();
+
+    return temp-pos_offset; //temp是在机器人坐标系下的足端位置，要转换成支撑相中型点的坐标输出
 }

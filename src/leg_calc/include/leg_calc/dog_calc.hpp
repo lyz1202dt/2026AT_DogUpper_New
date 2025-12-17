@@ -78,41 +78,13 @@ private:
     std::unique_ptr<LegCalc> lb_leg_calc;
     std::unique_ptr<LegCalc> rb_leg_calc;
     
-    KDL::JntArray lf_leg_current_rad;
-    KDL::JntArray rf_leg_current_rad;
-    KDL::JntArray lb_leg_current_rad;
-    KDL::JntArray rb_leg_current_rad;
     
-    KDL::JntArray lf_leg_target_rad;
-    KDL::JntArray rf_leg_target_rad;
-    KDL::JntArray lb_leg_target_rad;
-    KDL::JntArray rb_leg_target_rad;
 
-    KDL::JntArray lf_leg_current_omega;
-    KDL::JntArray rf_leg_current_omega;
-    KDL::JntArray lb_leg_current_omega;
-    KDL::JntArray rb_leg_current_omega;
-    
-    KDL::JntArray lf_leg_target_omega;
-    KDL::JntArray rf_leg_target_omega;
-    KDL::JntArray lb_leg_target_omega;
-    KDL::JntArray rb_leg_target_omega;
+    Eigen::Vector3d lf_cart_target;
+    Eigen::Vector3d rf_cart_target;
+    Eigen::Vector3d lb_cart_target;
+    Eigen::Vector3d rb_cart_target;
 
-    KDL::JntArray lf_leg_current_torque;
-    KDL::JntArray rf_leg_current_torque;
-    KDL::JntArray lb_leg_current_torque;
-    KDL::JntArray rb_leg_current_torque;
-    
-    KDL::JntArray lf_leg_target_torque;
-    KDL::JntArray rf_leg_target_torque;
-    KDL::JntArray lb_leg_target_torque;
-    KDL::JntArray rb_leg_target_torque;
-
-    KDL::Vector lf_cart_target;
-    KDL::Vector rf_cart_target;
-    KDL::Vector lb_cart_target;
-    KDL::Vector rb_cart_target;
-
-    std::vector<double> current_joint_pos;
     sensor_msgs::msg::JointState joint_msg;
+
 };

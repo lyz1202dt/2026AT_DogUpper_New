@@ -116,7 +116,7 @@ bool UpdateGndStepLine(
     line->gx.b = cur_pos[0];
 
     line->gy.k = (-target_y - cur_pos[1])
-               / (time * 0.5); // 对于支撑相，之后的运动应为从当前点到到步态结束点的直线
+               / (time * 0.5);    // 对于支撑相，之后的运动应为从当前点到到步态结束点的直线
     line->gy.b = cur_pos[1];
 
     return true;
@@ -145,11 +145,14 @@ bool UpdateAirStepLine(
     return true;
 }
 
-bool UpdateCycloidStep(const Vector2D& exp_vel, CycloidStep_t* line, float time, float step_height) {
-    line->Lx = exp_vel[0] * time; // 步长应该是期望速度乘以半个步态周期，但是转换到机器人坐标系后需要乘以整个步态周期因为机器人在向前移动
+bool UpdateCycloidStep(
+    const Vector2D& exp_vel, CycloidStep_t* line, float time, float step_height) {
+    line->Lx =
+        exp_vel[0]
+        * time; // 步长应该是期望速度乘以半个步态周期，但是转换到机器人坐标系后需要乘以整个步态周期因为机器人在向前移动
     line->Ly = exp_vel[1] * time;
     line->H  = step_height;
-    line->T  = time * 0.5f;              // 实际上，摆动相只占整个步态的一半时间
+    line->T  = time * 0.5f;    // 实际上，摆动相只占整个步态的一半时间
 
     line->exp_vx = exp_vel[0]; // 当前速度估计（认为机器人足端位置的速度就是期望速度）
     line->exp_vy = exp_vel[1];
@@ -163,7 +166,7 @@ std::tuple<Vector3D, Vector3D, Vector3D> GetCycloidStep(float time, CycloidStep_
 
     Vector3D pos, vel, acc;
 
-    if (s <= 1.0f) {    //摆动相
+    if (s <= 1.0f) {           // 摆动相
         // 位置
         pos[0] = line.Lx * (2 * pi * s - std::sin(2 * pi * s)) / (2 * pi) - line.exp_vx * time;
         pos[1] = line.Ly * (2 * pi * s - std::sin(2 * pi * s)) / (2 * pi) - line.exp_vy * time;
@@ -178,10 +181,9 @@ std::tuple<Vector3D, Vector3D, Vector3D> GetCycloidStep(float time, CycloidStep_
         acc[0] = line.Lx * (2 * pi * std::sin(2 * pi * s)) / (line.T * line.T);
         acc[1] = line.Ly * (2 * pi * std::sin(2 * pi * s)) / (line.T * line.T);
         acc[2] = line.H * 2 * pi * pi * std::cos(2 * pi * s) / (line.T * line.T);
-    }
-    else {      //1<s<2,支撑相
-        pos[0] = line.Lx*0.5-line.exp_vx * (time-line.T);
-        pos[1] = line.Ly*0.5-line.exp_vy * (time-line.T);
+    } else { // 1<s<2,支撑相
+        pos[0] = line.Lx * 0.5 - line.exp_vx * (time - line.T);
+        pos[1] = line.Ly * 0.5 - line.exp_vy * (time - line.T);
         pos[2] = 0.0;
 
         vel[0] = -line.exp_vx;
