@@ -7,7 +7,7 @@ Panels:
         - /Global Options1
         - /Status1
         - /RobotModel1
-        - /Marker1
+        - /TF1
         - /Marker1/Topic1
       Splitter Ratio: 0.5
     Tree Height: 542
@@ -88,6 +88,11 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
           Value: true
+        lb_link4:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
         lf_link1:
           Alpha: 1
           Show Axes: false
@@ -99,6 +104,11 @@ Visualization Manager:
           Show Trail: false
           Value: true
         lf_link3:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lf_link4:
           Alpha: 1
           Show Axes: false
           Show Trail: false
@@ -118,6 +128,11 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
           Value: true
+        rb_link4:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
         rf_link1:
           Alpha: 1
           Show Axes: false
@@ -129,6 +144,11 @@ Visualization Manager:
           Show Trail: false
           Value: true
         rf_link3:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rf_link4:
           Alpha: 1
           Show Axes: false
           Show Trail: false
@@ -156,11 +176,15 @@ Visualization Manager:
           Value: true
         lb_link3:
           Value: true
+        lb_link4:
+          Value: true
         lf_link1:
           Value: true
         lf_link2:
           Value: true
         lf_link3:
+          Value: true
+        lf_link4:
           Value: true
         rb_link1:
           Value: true
@@ -168,13 +192,17 @@ Visualization Manager:
           Value: true
         rb_link3:
           Value: true
+        rb_link4:
+          Value: true
         rf_link1:
           Value: true
         rf_link2:
           Value: true
         rf_link3:
           Value: true
-      Marker Scale: 1
+        rf_link4:
+          Value: true
+      Marker Scale: 0.5
       Name: TF
       Show Arrows: true
       Show Axes: true
@@ -184,26 +212,30 @@ Visualization Manager:
           lb_link1:
             lb_link2:
               lb_link3:
-                {}
+                lb_link4:
+                  {}
           lf_link1:
             lf_link2:
               lf_link3:
-                {}
+                lf_link4:
+                  {}
           rb_link1:
             rb_link2:
               rb_link3:
-                {}
+                rb_link4:
+                  {}
           rf_link1:
             rf_link2:
               rf_link3:
-                {}
+                rf_link4:
+                  {}
       Update Interval: 0
       Value: true
     - Class: rviz_default_plugins/Marker
       Enabled: true
       Name: Marker
       Namespaces:
-        points: true
+        {}
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -273,10 +305,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: -0.069797582924366
+      Pitch: -0.08979758620262146
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 0.1272139549255371
+      Yaw: 1.1422137022018433
     Saved: ~
 Window Geometry:
   Displays:
@@ -294,5 +326,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1200
-  X: 3050
-  Y: 335
+  X: 2825
+  Y: 323

@@ -47,11 +47,12 @@ private:
     double joint3_kp;
     double joint3_kd;
 
+    bool update_flag{true};
+
 
     CycloidStep_t cycloid_step[4];  //4个脚的步态
     float leg_run_time;                                                  // 一个脚步的时间
-    //std::chrono::high_resolution_clock::time_point last_step_reset_time; // 上次步态重置时间点
-    rclcpp::Time last_step_reset_time;
+    rclcpp::Time last_step1_reset_time,last_step2_reset_time;
 
     rclcpp::TimerBase::SharedPtr ui_update_timer;
     rclcpp::TimerBase::SharedPtr legs_update_timer;
@@ -77,6 +78,8 @@ private:
     std::unique_ptr<LegCalc> rf_leg_calc;
     std::unique_ptr<LegCalc> lb_leg_calc;
     std::unique_ptr<LegCalc> rb_leg_calc;
+
+    CycloidStep_t step_line1,step_line2;
     
     
 

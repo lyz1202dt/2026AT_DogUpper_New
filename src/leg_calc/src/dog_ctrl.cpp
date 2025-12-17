@@ -1,4 +1,6 @@
 #include "dog_calc.hpp"
+#include "step.h"
+#include <Eigen/src/Core/Matrix.h>
 #include <chrono>
 #include <kdl/frames.hpp>
 
@@ -62,15 +64,15 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     marker_publisher =
         node_->create_publisher<visualization_msgs::msg::Marker>("visualization_marker", 10);
 
-    rviz_joint_publisher = node_->create_publisher<sensor_msgs::msg::JointState>("joint_states", 10);
+    rviz_joint_publisher =
+        node_->create_publisher<sensor_msgs::msg::JointState>("joint_states", 10);
 
     legs_target_pub = node_->create_publisher<robot_interfaces::msg::Robot>(
-        "legs_target", 10); // 创建期望位置发布者
+        "legs_target", 10);                             // 创建期望位置发布者
 
     legs_state_sub = node_->create_subscription<robot_interfaces::msg::Robot>(
         "legs_status", 10, [this](const robot_interfaces::msg::Robot& msg) {
-            //RCLCPP_INFO(this->get_logger(), "订阅到最新的电机状态");
-            
+            // RCLCPP_INFO(this->get_logger(), "订阅到最新的电机状态");
         });
 
     robot_description_param_ =
@@ -83,68 +85,67 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
         return;
     }
 
-    kdl_parser::treeFromString(urdf_xml, tree);         // 解析四条腿的KDL树结构
+    kdl_parser::treeFromString(urdf_xml, tree); // 解析四条腿的KDL树结构
     tree.getChain("body_link", "lf_link4", lf_leg_chain);
     tree.getChain("body_link", "rf_link4", rf_leg_chain);
     tree.getChain("body_link", "lb_link4", lb_leg_chain);
     tree.getChain("body_link", "rb_link4", rb_leg_chain);
 
-    // 初始化狗腿解算器
+    // 初始化狗腿解算器，定义足端中性点位置
     lf_leg_calc = std::make_unique<LegCalc>(lf_leg_chain);
-    lf_leg_calc->pos_offset<<0.21,0.16,-0.25;
+    lf_leg_calc->pos_offset << 0.21, 0.16, -0.25;
 
     rf_leg_calc = std::make_unique<LegCalc>(rf_leg_chain);
-    lb_leg_calc = std::make_unique<LegCalc>(lb_leg_chain);
-    rb_leg_calc = std::make_unique<LegCalc>(rb_leg_chain);
-    
+    rf_leg_calc->pos_offset << 0.21, -0.16, -0.25;
 
+    lb_leg_calc = std::make_unique<LegCalc>(lb_leg_chain);
+    lb_leg_calc->pos_offset << -0.21, 0.16, -0.25;
+
+    rb_leg_calc = std::make_unique<LegCalc>(rb_leg_chain);
+    rb_leg_calc->pos_offset << -0.21, -0.16, -0.25;
 
     joint_msg.name = {"lf_joint1", "lf_joint2", "lf_joint3", "rf_joint1", "rf_joint2", "rf_joint3",
                       "lb_joint1", "lb_joint2", "lb_joint3", "rb_joint1", "rb_joint2", "rb_joint3"};
     joint_msg.position.resize(12);
 
+    last_step1_reset_time = node_->get_clock()->now();
+    last_step2_reset_time = node_->get_clock()->now();
 
-    lf_cart_target={0.0,0.0,0.0};
-
-    last_step_reset_time=node_->get_clock()->now();
-
-
-    ui_update_timer =
-        node_->create_wall_timer(50ms, std::bind(&RobotCalcNode::show_callback, this));
+    // ui_update_timer =
+    //     node_->create_wall_timer(50ms, std::bind(&RobotCalcNode::show_callback, this));
     legs_update_timer =
         node_->create_wall_timer(50ms, std::bind(&RobotCalcNode::legs_update, this));
 
-    
-    RCLCPP_INFO(node_->get_logger(),"初始化完成");
+    RCLCPP_INFO(node_->get_logger(), "初始化完成");
+    UpdateCycloidStep(Eigen::Vector2d(0.1, 0.0), &step_line1, 2.0, 0.08); // 首次启动先规划一次步态
+    UpdateCycloidStep(Eigen::Vector2d(0.0, 0.0), &step_line2, 2.0, 0.0);    //步态曲线2规划为静止
 }
 
-RobotCalcNode::~RobotCalcNode() {
-    delete vmc;
-}
+RobotCalcNode::~RobotCalcNode() { delete vmc; }
 
 void RobotCalcNode::show_callback() {
     visualization_msgs::msg::Marker dot_marker;
-    dot_marker.header.frame_id = "body_link";     // 设置坐标系
+    dot_marker.header.frame_id = "body_link";                             // 设置坐标系
     dot_marker.header.stamp    = node_->get_clock()->now();
     dot_marker.ns              = "points";
     dot_marker.id              = 0;
     dot_marker.type            = visualization_msgs::msg::Marker::SPHERE;
     dot_marker.action          = visualization_msgs::msg::Marker::ADD;
 
-    dot_marker.pose.position.x = lf_leg_calc->pos_offset[0]+lf_cart_target.x();
-    dot_marker.pose.position.y = lf_leg_calc->pos_offset[1]+lf_cart_target.y();
-    dot_marker.pose.position.z = lf_leg_calc->pos_offset[2]+lf_cart_target.z();
+    // dot_marker.pose.position.x = lf_leg_calc->pos_offset[0] + lf_cart_target[0];
+    // dot_marker.pose.position.y = lf_leg_calc->pos_offset[1] + lf_cart_target[0];
+    // dot_marker.pose.position.z = lf_leg_calc->pos_offset[2] + lf_cart_target[0];
     //  设置球体的尺寸
     dot_marker.scale.x = 0.1;
     dot_marker.scale.y = 0.1;
     dot_marker.scale.z = 0.1;
     // 设置颜色
-    dot_marker.color.a = 1.0;               // 不透明
+    dot_marker.color.a = 1.0;              // 不透明
     dot_marker.color.r = 1.0;
     dot_marker.color.g = 0.0;
     dot_marker.color.b = 0.0;
 
-    marker_publisher->publish(dot_marker);  // 发布点标记（狗腿足端位置）
+    marker_publisher->publish(dot_marker); // 发布点标记（狗腿足端位置）
 
     // visualization_msgs::msg::Marker arraw_marker;
     // arraw_marker.header.frame_id = "body_link"; // 选择你在 TF 树中有的 frame
@@ -183,41 +184,52 @@ void RobotCalcNode::show_callback() {
 
     // // marker_publisher->publish(arraw_marker);    //发布箭头标记（狗腿足端受力）*/
 
-    //RCLCPP_INFO(node_->get_logger(), "kp=%lf,kd=%lf,mass=%lf", vmc->kp, vmc->kd, vmc->mass);
+    // RCLCPP_INFO(node_->get_logger(), "kp=%lf,kd=%lf,mass=%lf", vmc->kp, vmc->kd, vmc->mass);
 }
 
 void RobotCalcNode::legs_update() {
-    // TODO:更新当前个狗腿状态
-    //lf_leg_calc->set_leg_state(lf_leg_current_rad, lf_leg_current_omega, lf_leg_current_torque);
-    // TODO:生成步态
 
-    if(node_->get_clock()->now()-last_step_reset_time>rclcpp::Duration(2,0))    //如果时间差大于2s
+    if (update_flag&&node_->get_clock()->now() - last_step1_reset_time > rclcpp::Duration(1, 0)) {
+        update_flag=false;  //确保只会更新一次
+        last_step2_reset_time=node_->get_clock()->now();
+        UpdateCycloidStep(Eigen::Vector2d(0.1, 0.0), &step_line2, 2.0, 0.08);
+    } else if (node_->get_clock()->now() - last_step1_reset_time> rclcpp::Duration(2, 0))
     {
-        last_step_reset_time=node_->get_clock()->now();
+        update_flag=true;
+        last_step1_reset_time = node_->get_clock()->now();
+        UpdateCycloidStep(Eigen::Vector2d(0.1, 0.0), &step_line1, 2.0, 0.08);
     }
-    auto cur_step_time=node_->get_clock()->now()-last_step_reset_time;
-    lf_cart_target[2]=cur_step_time.seconds()*0.04f; //每秒上升0.1m
 
-    
+    //左前，右后狗腿更新
+    auto step1_time  = node_->get_clock()->now() - last_step1_reset_time;
+    auto current_target1 = GetCycloidStep((float)step1_time.seconds(), step_line1);
+    auto lfrb_cart_target = std::get<0>(current_target1);
+
+    auto step2_time  = node_->get_clock()->now() - last_step2_reset_time;
+    auto current_target2 = GetCycloidStep((float)step2_time.seconds(), step_line2);
+    auto rflb_cart_target = std::get<0>(current_target2);
+
     // TODO:计算关节空间期望
-    int result=0;
-    auto joint_target_pos=lf_leg_calc->joint_pos(lf_cart_target,&result);
+    int result            = 0;
+    auto lf_joint_target_pos = lf_leg_calc->joint_pos(lfrb_cart_target, &result);
+    auto rb_joint_target_pos=rb_leg_calc->joint_pos(lfrb_cart_target, &result);
+    auto rf_joint_target_pos = rf_leg_calc->joint_pos(rflb_cart_target, &result);
+    auto lb_joint_target_pos=lb_leg_calc->joint_pos(rflb_cart_target, &result);
     // TODO:写入目标并发布
-    if (result==0) {
-        joint_msg.position[0] = joint_target_pos[0];
-        joint_msg.position[1] = joint_target_pos[1];
-        joint_msg.position[2] = joint_target_pos[2];
-        RCLCPP_WARN(node_->get_logger(), "左前腿求解成功");
-    } else {
-        RCLCPP_WARN(node_->get_logger(), "左前腿逆解失败");
-    }
-    // lf_leg_calc->foot_pos(lf_leg_current_rad, result_temp);
-    // RCLCPP_INFO(node_->get_logger(),"当前位置:(%lf,%lf,%lf)",result_temp.x(),result_temp.y(),result_temp.z());
-    // RCLCPP_INFO(node_->get_logger(),"求解完成，发布关节状态,ret=%d",ret);
+    joint_msg.position[0] = lf_joint_target_pos[0];
+    joint_msg.position[1] = lf_joint_target_pos[1];
+    joint_msg.position[2] = lf_joint_target_pos[2];
+    joint_msg.position[3] = rf_joint_target_pos[0];
+    joint_msg.position[4] = rf_joint_target_pos[1];
+    joint_msg.position[5] = rf_joint_target_pos[2];
+    joint_msg.position[6] = lb_joint_target_pos[0];
+    joint_msg.position[7] = lb_joint_target_pos[1];
+    joint_msg.position[8] = lb_joint_target_pos[2];
+    joint_msg.position[9] = rb_joint_target_pos[0];
+    joint_msg.position[10] = rb_joint_target_pos[1];
+    joint_msg.position[11] = rb_joint_target_pos[2];
 
-    // Debug：将狗腿状态直接设为期望
-    //lf_leg_current_rad = lf_leg_target_rad;
-
+    RCLCPP_INFO(node_->get_logger(),"完成解算");
 
     joint_msg.header.stamp = node_->get_clock()->now();
     rviz_joint_publisher->publish(joint_msg);
