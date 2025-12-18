@@ -15,7 +15,7 @@ typedef struct
     double d;
     double e;
     double f;
-}CubicLineParam_t;
+}QuinticLineParam_t;
 
 typedef struct
 {
@@ -26,14 +26,19 @@ typedef struct
 
 typedef struct
 {
-    CubicLineParam_t lx;
-    CubicLineParam_t ly;
-    CubicLineParam_t l1_z;
-    CubicLineParam_t l2_z;
-    StraightLineParam_t gx;
-    StraightLineParam_t gy;
+    QuinticLineParam_t lx;
+    QuinticLineParam_t ly;
+    QuinticLineParam_t l1_z;
+    QuinticLineParam_t l2_z;
+    float time;             //摆动相全程时间
+}StepTrajectory_t;
+
+typedef struct{
+    StraightLineParam_t lx;
+    StraightLineParam_t ly;
+    StraightLineParam_t lz;
     float time;
-}Trajectory_t;
+}SupportTrajectory_t;       //支撑相全程时间
 
 typedef struct
 {
@@ -45,11 +50,12 @@ typedef struct
     float T;
 }CycloidStep_t;
 
-//规划步态，在step==0.5或==1时调用更新步态，一定返回true
-bool UpdateGndStepLine(const Vector3D &cur_pos, const Vector2D &exp_vel, Trajectory_t *line,float time);
-bool UpdateAirStepLine(const Vector3D &cur_pos, const Vector3D &cur_vel, const Vector2D &exp_vel, Trajectory_t *line,float time,float step_height);
-//在每次迭代中，返回电机的期望位置，期望速度，期望力矩
-std::tuple<Vector3D, Vector3D, Vector3D> GetLegTarget(float time, Trajectory_t &line);
+//步态规划
+bool UpdateGndStepLine(const Vector3D &cur_pos, const Vector2D &exp_vel, StepTrajectory_t *line,float time);
+bool UpdateAirStepLine(const Vector3D &cur_pos, const Vector3D &cur_vel, const Vector2D &exp_vel, StepTrajectory_t *line,float time,float step_height);
+//步态执行
+std::tuple<Vector3D, Vector3D, Vector3D>GetCycloidStep(StepTrajectory_t &line, float time);
+std::tuple<Vector3D, Vector3D, Vector3D>GetSupportStep(SupportTrajectory_t &line, float time);
 
 bool UpdateCycloidStep(const Vector2D &exp_vel, CycloidStep_t *line,float time,float step_height);
 std::tuple<Vector3D,Vector3D,Vector3D> GetCycloidStep(float time, CycloidStep_t &line);
