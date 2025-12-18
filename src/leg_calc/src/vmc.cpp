@@ -2,6 +2,7 @@
 #include <cassert>
 #include <chrono>
 #include <algorithm>
+#include <cmath>
 
 VMC::VMC(double kp,double kd,double mass,double max_acc,double max_vel,double max_pos,std::chrono::high_resolution_clock::duration dt,
         double start_pos,double start_vel)
@@ -42,4 +43,20 @@ void VMC::reset(double virtual_pos,double virtual_vel)
 {
     this->virtual_pos=virtual_pos;
     this->virtual_vel=virtual_vel;
+}
+
+SimpleVMC::SimpleVMC(const double kp,const double kd,double out_limit)
+{
+    this->kp=kp;
+    this->kd=kd;
+    this->out_limit=out_limit;
+}
+
+double SimpleVMC::update(const double pos_in,const double vel_in,const double pos_exp,const double vel_exp)
+{
+    double force=(pos_exp-pos_in)*kp+(vel_exp-vel_in)*kd;
+    if(force>out_limit)
+        force=out_limit;
+    else if(force<-out_limit)
+        force=-out_limit;
 }

@@ -26,4 +26,13 @@ private:
     double dt;
 };
 
+class SimpleVMC{
+    public:
+    SimpleVMC(const double kp,const double kd,const double out_limit=100000000000.0);
+    double update(const double pos_in,const double vel_in,const double pos_exp=0.0,const double vel_exp=0.0);
+    double kp;
+    double kd;
+    double out_limit;
+};
+
 #endif

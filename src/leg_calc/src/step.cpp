@@ -84,11 +84,11 @@ std::tuple<Vector3D, Vector3D, Vector3D> GetSupportStep(SupportTrajectory_t& lin
 }
 
 bool UpdateGndStepLine(
-    const Vector3D& cur_pos, const Vector2D& exp_vel, SupportTrajectory_t *line, float time) {
+    const Vector3D& cur_pos, const Vector2D& exp_vel, SupportTrajectory_t* line, float time) {
     double target_x = -exp_vel[0] * time * 0.5; // 理想情况下，足端轨迹中心应该过足端坐标系的中点
     double target_y = -exp_vel[1] * time * 0.5;
 
-    line->time = time;                           // 记录一个步态相位的时间
+    line->time = time;                          // 记录一个步态相位的时间
 
     line->lx.k = (target_x - cur_pos[0]) / time;
     line->lx.b = cur_pos[0];
@@ -96,24 +96,44 @@ bool UpdateGndStepLine(
     line->ly.k = (target_y - cur_pos[1]) / time;
     line->ly.b = cur_pos[1];
 
-    line->lz.k =  - cur_pos[2] / time;
+    line->lz.k = -cur_pos[2] / time;
     line->lz.b = cur_pos[2];
 
     return true;
 }
 
+bool UpdateGndStepLine(
+    const Vector3D& cur_pos, const Vector3D final_pos, SupportTrajectory_t* line, float time) {
+
+    line->time = time;                          // 记录一个步态相位的时间
+
+    line->lx.k = (final_pos[0] - cur_pos[0]) / time;
+    line->lx.b = cur_pos[0];
+
+    line->ly.k = (final_pos[1] - cur_pos[1]) / time;
+    line->ly.b = cur_pos[1];
+
+    line->lz.k = (final_pos[2] - cur_pos[2]) / time;
+    line->lz.b = cur_pos[2];
+
+    return true;
+}
+
+/**
+    @brief 生成抬腿步态，根据期望速度自动计算最佳落脚点
+ */
 bool UpdateAirStepLine(
     const Vector3D& cur_pos, const Vector3D& cur_vel, const Vector2D& exp_vel,
     StepTrajectory_t* line, float time, float step_height) {
 
-    double target_x =exp_vel[0] * time * 0.5;
+    double target_x = exp_vel[0] * time * 0.5;
     double target_y = exp_vel[1] * time * 0.5;
 
-    line->time=time;
+    line->time = time;
 
     set_quintic(
-        line->lx, cur_pos[0], cur_vel[0], 0.0,    // 起点
-        target_x, -exp_vel[0], 0.0, time); // 终点
+        line->lx, cur_pos[0], cur_vel[0], 0.0, // 起点
+        target_x, -exp_vel[0], 0.0, time);     // 终点
     // y方向轨迹
     set_quintic(line->ly, cur_pos[1], cur_vel[1], 0.0, target_y, -exp_vel[1], 0.0, time);
     // z方向分为两段：抬腿 -> 落腿
@@ -122,6 +142,30 @@ bool UpdateAirStepLine(
 
     // 第二段：从最高点落到地面
     set_quintic(line->l2_z, step_height, 0.0, 0.0, 0.0, 0.0, 0.0, time * 0.5f);
+
+    return true;
+}
+
+/**
+    @brief 给定落脚点坐标，规划完整抬脚曲线
+ */
+bool UpdateAirStepLine(
+    const Vector3D& cur_pos, const Vector3D& cur_vel, const Vector2D& exp_vel,
+    const Vector3D final_pos, StepTrajectory_t* line, float time, float step_height) {
+
+    line->time = time;
+
+    set_quintic(
+        line->lx, cur_pos[0], cur_vel[0], 0.0, // 起点
+        final_pos[0], -exp_vel[0], 0.0, time); // 终点
+    // y方向轨迹
+    set_quintic(line->ly, cur_pos[1], cur_vel[1], 0.0, final_pos[1], -exp_vel[1], 0.0, time);
+    // z方向分为两段：抬腿 -> 落腿
+    // 第一段：从当前z抬到最高点
+    set_quintic(line->l1_z, cur_pos[2], cur_vel[2], 0.0, step_height, 0.0, 0.0, time * 0.5f);
+
+    // 第二段：从最高点落到地面
+    set_quintic(line->l2_z, step_height, 0.0, 0.0, final_pos[2], 0.0, 0.0, time * 0.5f);
 
     return true;
 }
