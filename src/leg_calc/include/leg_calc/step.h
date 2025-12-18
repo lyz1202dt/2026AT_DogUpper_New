@@ -51,11 +51,11 @@ typedef struct
 }CycloidStep_t;
 
 //步态规划
-bool UpdateGndStepLine(const Vector3D &cur_pos, const Vector2D &exp_vel, StepTrajectory_t *line,float time);
+bool UpdateGndStepLine(const Vector3D &cur_pos, const Vector2D &exp_vel, SupportTrajectory_t *line,float time);
 bool UpdateAirStepLine(const Vector3D &cur_pos, const Vector3D &cur_vel, const Vector2D &exp_vel, StepTrajectory_t *line,float time,float step_height);
 //步态执行
-std::tuple<Vector3D, Vector3D, Vector3D>GetCycloidStep(StepTrajectory_t &line, float time);
-std::tuple<Vector3D, Vector3D, Vector3D>GetSupportStep(SupportTrajectory_t &line, float time);
+std::tuple<Vector3D, Vector3D, Vector3D> GetQuinticStep(StepTrajectory_t &line, float time);
+std::tuple<Vector3D, Vector3D, Vector3D> GetSupportStep(SupportTrajectory_t &line, float time);
 
 bool UpdateCycloidStep(const Vector2D &exp_vel, CycloidStep_t *line,float time,float step_height);
 std::tuple<Vector3D,Vector3D,Vector3D> GetCycloidStep(float time, CycloidStep_t &line);

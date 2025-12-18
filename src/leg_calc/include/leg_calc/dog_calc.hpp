@@ -80,7 +80,9 @@ private:
     std::unique_ptr<LegCalc> rb_leg_calc;
 
     CycloidStep_t step_line1,step_line2;
-    
+    StepTrajectory_t air_step_line;
+    SupportTrajectory_t gnd_step_line;
+    bool last_switch{false};
     
 
     Eigen::Vector3d lf_cart_target;

@@ -3,6 +3,7 @@
 #include <Eigen/src/Core/Matrix.h>
 #include <chrono>
 #include <kdl/frames.hpp>
+#include <rclcpp/duration.hpp>
 
 using namespace std::chrono_literals;
 
@@ -113,19 +114,21 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
 
     // ui_update_timer =
     //     node_->create_wall_timer(50ms, std::bind(&RobotCalcNode::show_callback, this));
-    legs_update_timer =
-        node_->create_wall_timer(50ms, std::bind(&RobotCalcNode::legs_update, this));
+    legs_update_timer = node_->create_timer(50ms, std::bind(&RobotCalcNode::legs_update, this));
 
     RCLCPP_INFO(node_->get_logger(), "初始化完成");
-    UpdateCycloidStep(Eigen::Vector2d(0.1, 0.0), &step_line1, 2.0, 0.08); // 首次启动先规划一次步态
-    UpdateCycloidStep(Eigen::Vector2d(0.0, 0.0), &step_line2, 2.0, 0.0);    //步态曲线2规划为静止
+    // UpdateCycloidStep(Eigen::Vector2d(0.1, 0.0), &step_line1, 2.0, 0.08); //
+    // 首次启动先规划一次步态 UpdateCycloidStep(Eigen::Vector2d(0.0, 0.0), &step_line2, 2.0, 0.0);
+    // //步态曲线2规划为静止 UpdateAirStepLine(const Vector3D &cur_pos, const Vector3D &cur_vel,
+    // const Vector2D &exp_vel, StepTrajectory_t *line, float time, float step_height)
+    UpdateGndStepLine(Vector3D(0.0, 0.0, 0.0), Vector2D(0.1, 0.0), &gnd_step_line, 2.0);
 }
 
 RobotCalcNode::~RobotCalcNode() { delete vmc; }
 
 void RobotCalcNode::show_callback() {
     visualization_msgs::msg::Marker dot_marker;
-    dot_marker.header.frame_id = "body_link";                             // 设置坐标系
+    dot_marker.header.frame_id = "body_link"; // 设置坐标系
     dot_marker.header.stamp    = node_->get_clock()->now();
     dot_marker.ns              = "points";
     dot_marker.id              = 0;
@@ -189,7 +192,7 @@ void RobotCalcNode::show_callback() {
 
 void RobotCalcNode::legs_update() {
 
-    if (update_flag&&node_->get_clock()->now() - last_step1_reset_time > rclcpp::Duration(1, 0)) {
+    /*if (update_flag&&node_->get_clock()->now() - last_step1_reset_time > rclcpp::Duration(1, 0)) {
         update_flag=false;  //确保只会更新一次
         last_step2_reset_time=node_->get_clock()->now();
         UpdateCycloidStep(Eigen::Vector2d(0.1, 0.0), &step_line2, 2.0, 0.08);
@@ -207,29 +210,53 @@ void RobotCalcNode::legs_update() {
 
     auto step2_time  = node_->get_clock()->now() - last_step2_reset_time;
     auto current_target2 = GetCycloidStep((float)step2_time.seconds(), step_line2);
-    auto rflb_cart_target = std::get<0>(current_target2);
-
+    auto rflb_cart_target = std::get<0>(current_target2);*/
+    if (node_->get_clock()->now() - last_step1_reset_time > rclcpp::Duration(1, 0)) {
+        last_step1_reset_time = node_->get_clock()->now();
+        if (last_switch) // 规划并执行支撑步态
+        {
+            last_switch = false;
+            RCLCPP_INFO(node_->get_logger(), "规划支撑相");
+            UpdateGndStepLine(Vector3D(0.05, 0.0, 0.0), Vector2D(0.1, 0.0), &gnd_step_line, 1.0);
+        } else {         // 规划并执行摆动步态
+            last_switch = true;
+            RCLCPP_INFO(node_->get_logger(), "规划摆动相");
+            UpdateAirStepLine(
+                Vector3D(-0.05, 0.0, 0.0), Vector3D(-0.1, 0.0, 0.0), Vector2D(0.1, 0.0),
+                &air_step_line, 1.0f, 0.07f);
+        }
+    }
+    std::tuple<Vector3D, Vector3D, Vector3D> target1;
+    double now_s = (node_->get_clock()->now() - last_step1_reset_time).seconds();
+    if (last_switch) {
+        target1 = GetQuinticStep(air_step_line, now_s);
+    } else {
+        target1 = GetSupportStep(gnd_step_line, now_s);
+    }
+    RCLCPP_INFO(
+        node_->get_logger(), "当前期望坐标:(%lf,%lf,%lf)", std::get<0>(target1)[0],
+        std::get<0>(target1)[1], std::get<0>(target1)[2]);
     // TODO:计算关节空间期望
-    int result            = 0;
-    auto lf_joint_target_pos = lf_leg_calc->joint_pos(lfrb_cart_target, &result);
-    auto rb_joint_target_pos=rb_leg_calc->joint_pos(lfrb_cart_target, &result);
-    auto rf_joint_target_pos = rf_leg_calc->joint_pos(rflb_cart_target, &result);
-    auto lb_joint_target_pos=lb_leg_calc->joint_pos(rflb_cart_target, &result);
+    int result               = 0;
+    auto lf_joint_target_pos = lf_leg_calc->joint_pos(std::get<0>(target1), &result);
+    // auto rb_joint_target_pos=rb_leg_calc->joint_pos(lfrb_cart_target, &result);
+    // auto rf_joint_target_pos = rf_leg_calc->joint_pos(rflb_cart_target, &result);
+    // auto lb_joint_target_pos=lb_leg_calc->joint_pos(rflb_cart_target, &result);
     // TODO:写入目标并发布
     joint_msg.position[0] = lf_joint_target_pos[0];
     joint_msg.position[1] = lf_joint_target_pos[1];
     joint_msg.position[2] = lf_joint_target_pos[2];
-    joint_msg.position[3] = rf_joint_target_pos[0];
-    joint_msg.position[4] = rf_joint_target_pos[1];
-    joint_msg.position[5] = rf_joint_target_pos[2];
-    joint_msg.position[6] = lb_joint_target_pos[0];
-    joint_msg.position[7] = lb_joint_target_pos[1];
-    joint_msg.position[8] = lb_joint_target_pos[2];
-    joint_msg.position[9] = rb_joint_target_pos[0];
-    joint_msg.position[10] = rb_joint_target_pos[1];
-    joint_msg.position[11] = rb_joint_target_pos[2];
+    // joint_msg.position[3] = rf_joint_target_pos[0];
+    // joint_msg.position[4] = rf_joint_target_pos[1];
+    // joint_msg.position[5] = rf_joint_target_pos[2];
+    // joint_msg.position[6] = lb_joint_target_pos[0];
+    // joint_msg.position[7] = lb_joint_target_pos[1];
+    // joint_msg.position[8] = lb_joint_target_pos[2];
+    // joint_msg.position[9] = rb_joint_target_pos[0];
+    // joint_msg.position[10] = rb_joint_target_pos[1];
+    // joint_msg.position[11] = rb_joint_target_pos[2];
 
-    RCLCPP_INFO(node_->get_logger(),"完成解算");
+    // RCLCPP_INFO(node_->get_logger(),"完成解算");
 
     joint_msg.header.stamp = node_->get_clock()->now();
     rviz_joint_publisher->publish(joint_msg);
