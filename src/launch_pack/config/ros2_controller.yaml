@@ -1,0 +1,6 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 500
+
+    dog_controller:
+      type: dog_controller/DogController

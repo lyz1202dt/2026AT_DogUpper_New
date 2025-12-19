@@ -8,14 +8,15 @@
 
   <gazebo>
     <plugin
-      name="gz_ros2_control"
+      name="gz_ros2_control::GazeboSimROS2ControlPlugin"
       filename="libgz_ros2_control-system.so"/>
   </gazebo>
 
-  <ros2_control name="dog_controller" type="system">
-    <hardware>
-      <plugin>gz_ros2_control/GazeboSystem</plugin>
-    </hardware>
+  <ros2_control name="dog_system" type="system">
+
+  <hardware>
+    <plugin>gz_ros2_control/GazeboSystem</plugin>
+  </hardware>
 
     <joint name="lf_joint1">
       <command_interface name="position"/>
@@ -372,7 +373,7 @@
     </collision>
   </link>
   <joint
-    name="lf_link4"
+    name="lf_joint4"
     type="fixed">
     <origin
       xyz="0.24 0 0.0238"
