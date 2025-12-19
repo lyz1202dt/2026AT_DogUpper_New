@@ -1,0 +1,28 @@
+#include "robot_interfaces/msg/robot.hpp"
+#include <controller_interface/controller_interface.hpp>
+#include <rclcpp/rclcpp.hpp>
+#include <rclcpp/subscription.hpp>
+#include <string>
+
+namespace dog_controller {
+class DogController : public controller_interface::ControllerInterface {
+public:
+    DogController();
+    controller_interface::CallbackReturn on_init() override;
+    controller_interface::CallbackReturn on_configure(const rclcpp_lifecycle::State& previous_state) override;
+    controller_interface::CallbackReturn on_activate(const rclcpp_lifecycle::State& previous_state) override;
+    controller_interface::CallbackReturn on_deactivate(const rclcpp_lifecycle::State& previous_state) override;
+
+    controller_interface::return_type update(const rclcpp::Time& time, const rclcpp::Duration& period) override;
+
+    controller_interface::InterfaceConfiguration command_interface_configuration() const override;
+    controller_interface::InterfaceConfiguration state_interface_configuration() const override;
+
+private:
+    rclcpp::Publisher<robot_interfaces::msg::Robot>::SharedPtr state_publisher;
+    rclcpp::Subscription<robot_interfaces::msg::Robot>::SharedPtr target_subscriber;
+    std::vector<std::string> joints_name_;
+
+    robot_interfaces::msg::Robot joints_target;
+};
+} // namespace dog_controller
