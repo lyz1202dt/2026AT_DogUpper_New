@@ -114,7 +114,7 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
 
     // ui_update_timer =
     //     node_->create_wall_timer(50ms, std::bind(&RobotCalcNode::show_callback, this));
-    legs_update_timer = node_->create_timer(50ms, std::bind(&RobotCalcNode::legs_update, this));
+    legs_update_timer = node_->create_wall_timer(50ms, std::bind(&RobotCalcNode::legs_update, this));
 
     RCLCPP_INFO(node_->get_logger(), "初始化完成");
     // UpdateCycloidStep(Eigen::Vector2d(0.1, 0.0), &step_line1, 2.0, 0.08); //
