@@ -40,12 +40,6 @@ private:
     
     bool enable_vmc{false};
     double force_filter_gate{0.8};
-    double joint1_kp;
-    double joint1_kd;
-    double joint2_kp;
-    double joint2_kd;
-    double joint3_kp;
-    double joint3_kd;
 
     bool update_flag{true};
 
@@ -90,6 +84,6 @@ private:
     Eigen::Vector3d lb_cart_target;
     Eigen::Vector3d rb_cart_target;
 
-    sensor_msgs::msg::JointState joint_msg;
+    sensor_msgs::msg::JointState joint_display_msg;
 
 };

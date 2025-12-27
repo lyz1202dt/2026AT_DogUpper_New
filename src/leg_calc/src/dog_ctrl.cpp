@@ -4,6 +4,7 @@
 #include <chrono>
 #include <kdl/frames.hpp>
 #include <rclcpp/duration.hpp>
+#include <robot_interfaces/msg/detail/robot__struct.hpp>
 
 using namespace std::chrono_literals;
 
@@ -11,12 +12,6 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     node_ = node;
     vmc   = new VMC(200, 60, 5.0, 0.5, 0.2, 0.1, 20ms); // 创建VMC计算对象
 
-    node_->declare_parameter("joint1_kp", 2.4);
-    node_->declare_parameter("joint2_kp", 3.2);
-    node_->declare_parameter("joint3_kp", 1.5);
-    node_->declare_parameter("joint1_kd", 0.15);
-    node_->declare_parameter("joint2_kd", 0.16);
-    node_->declare_parameter("joint3_kd", 0.18);
     node_->declare_parameter("force_filter_gate", 0.8);
     node_->declare_parameter("enable_vmc", false);
     node_->declare_parameter("vmc_kp", 350.0);
@@ -31,18 +26,6 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
             for (const auto& param : params) {
                 if (param.get_name() == "enable_vmc")
                     enable_vmc = param.as_bool();
-                else if (param.get_name() == "joint1_kp")
-                    joint1_kp = param.as_double();
-                else if (param.get_name() == "joint1_kd")
-                    joint1_kd = param.as_double();
-                else if (param.get_name() == "joint2_kp")
-                    joint2_kp = param.as_double();
-                else if (param.get_name() == "joint2_kd")
-                    joint2_kd = param.as_double();
-                else if (param.get_name() == "joint3_kp")
-                    joint3_kp = param.as_double();
-                else if (param.get_name() == "joint3_kd")
-                    joint3_kd = param.as_double();
                 else if (param.get_name() == "force_filter_gate")
                     force_filter_gate = param.as_double();
                 else if (param.get_name() == "vmc_kp")
@@ -54,13 +37,6 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
             }
             return result;
         });
-
-    joint1_kp = node_->get_parameter("joint1_kp").as_double();
-    joint1_kd = node_->get_parameter("joint1_kd").as_double();
-    joint2_kp = node_->get_parameter("joint2_kp").as_double();
-    joint2_kd = node_->get_parameter("joint2_kd").as_double();
-    joint3_kp = node_->get_parameter("joint3_kp").as_double();
-    joint3_kd = node_->get_parameter("joint3_kd").as_double();
 
     marker_publisher =
         node_->create_publisher<visualization_msgs::msg::Marker>("visualization_marker", 10);
@@ -105,9 +81,9 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     rb_leg_calc = std::make_unique<LegCalc>(rb_leg_chain);
     rb_leg_calc->pos_offset << -0.21, -0.16, -0.25;
 
-    joint_msg.name = {"lf_joint1", "lf_joint2", "lf_joint3", "rf_joint1", "rf_joint2", "rf_joint3",
+    joint_display_msg.name = {"lf_joint1", "lf_joint2", "lf_joint3", "rf_joint1", "rf_joint2", "rf_joint3",
                       "lb_joint1", "lb_joint2", "lb_joint3", "rb_joint1", "rb_joint2", "rb_joint3"};
-    joint_msg.position.resize(12);
+    joint_display_msg.position.resize(12);
 
     last_step1_reset_time = node_->get_clock()->now();
     last_step2_reset_time = node_->get_clock()->now();
@@ -192,26 +168,7 @@ void RobotCalcNode::show_callback() {
 
 void RobotCalcNode::legs_update() {
 
-    /*if (update_flag&&node_->get_clock()->now() - last_step1_reset_time > rclcpp::Duration(1, 0)) {
-        update_flag=false;  //确保只会更新一次
-        last_step2_reset_time=node_->get_clock()->now();
-        UpdateCycloidStep(Eigen::Vector2d(0.1, 0.0), &step_line2, 2.0, 0.08);
-    } else if (node_->get_clock()->now() - last_step1_reset_time> rclcpp::Duration(2, 0))
-    {
-        update_flag=true;
-        last_step1_reset_time = node_->get_clock()->now();
-        UpdateCycloidStep(Eigen::Vector2d(0.1, 0.0), &step_line1, 2.0, 0.08);
-    }
-
-    //左前，右后狗腿更新
-    auto step1_time  = node_->get_clock()->now() - last_step1_reset_time;
-    auto current_target1 = GetCycloidStep((float)step1_time.seconds(), step_line1);
-    auto lfrb_cart_target = std::get<0>(current_target1);
-
-    auto step2_time  = node_->get_clock()->now() - last_step2_reset_time;
-    auto current_target2 = GetCycloidStep((float)step2_time.seconds(), step_line2);
-    auto rflb_cart_target = std::get<0>(current_target2);*/
-    if (node_->get_clock()->now() - last_step1_reset_time > rclcpp::Duration(1, 0)) {
+    if (node_->get_clock()->now() - last_step1_reset_time > rclcpp::Duration(1, 0)) {   //足端轨迹更新
         last_step1_reset_time = node_->get_clock()->now();
         if (last_switch) // 规划并执行支撑步态
         {
@@ -226,6 +183,8 @@ void RobotCalcNode::legs_update() {
                 &air_step_line, 1.0f, 0.07f);
         }
     }
+
+    //足端位置解算
     std::tuple<Vector3D, Vector3D, Vector3D> target1;
     double now_s = (node_->get_clock()->now() - last_step1_reset_time).seconds();
     if (last_switch) {
@@ -233,6 +192,8 @@ void RobotCalcNode::legs_update() {
     } else {
         target1 = GetSupportStep(gnd_step_line, now_s);
     }
+
+
     RCLCPP_INFO(
         node_->get_logger(), "当前期望坐标:(%lf,%lf,%lf)", std::get<0>(target1)[0],
         std::get<0>(target1)[1], std::get<0>(target1)[2]);
@@ -242,10 +203,17 @@ void RobotCalcNode::legs_update() {
     // auto rb_joint_target_pos=rb_leg_calc->joint_pos(lfrb_cart_target, &result);
     // auto rf_joint_target_pos = rf_leg_calc->joint_pos(rflb_cart_target, &result);
     // auto lb_joint_target_pos=lb_leg_calc->joint_pos(rflb_cart_target, &result);
+    robot_interfaces::msg::Robot robot_msg;
+    robot_msg.legs[0].joints[0].rad=(float)lf_joint_target_pos[0];
+    robot_msg.legs[0].joints[1].rad=(float)lf_joint_target_pos[1];
+    robot_msg.legs[0].joints[2].rad=(float)lf_joint_target_pos[2];
+    robot_msg.legs[0].wheel.omega=0.0f;
+
+
     // TODO:写入目标并发布
-    joint_msg.position[0] = lf_joint_target_pos[0];
-    joint_msg.position[1] = lf_joint_target_pos[1];
-    joint_msg.position[2] = lf_joint_target_pos[2];
+    joint_display_msg.position[0] = lf_joint_target_pos[0];
+    joint_display_msg.position[1] = lf_joint_target_pos[1];
+    joint_display_msg.position[2] = lf_joint_target_pos[2];
     // joint_msg.position[3] = rf_joint_target_pos[0];
     // joint_msg.position[4] = rf_joint_target_pos[1];
     // joint_msg.position[5] = rf_joint_target_pos[2];
@@ -258,6 +226,6 @@ void RobotCalcNode::legs_update() {
 
     // RCLCPP_INFO(node_->get_logger(),"完成解算");
 
-    joint_msg.header.stamp = node_->get_clock()->now();
-    rviz_joint_publisher->publish(joint_msg);
+    joint_display_msg.header.stamp = node_->get_clock()->now();
+    rviz_joint_publisher->publish(joint_display_msg);
 }
