@@ -37,16 +37,17 @@ typedef struct{
 
 typedef struct{
     float omega;
+    float torque;
 }WheelState_t;
 
 typedef struct{
-    MotorTarget_t joint[3];
-    WheelTarget_t wheel;
+    MotorState_t joint[3];
+    WheelState_t wheel;
 }LegState_t;
 
 typedef struct{
     int pack_type;
-    LegTarget_t leg[4];
+    LegState_t leg[4];
 }MotorStatePack_t;
 
 

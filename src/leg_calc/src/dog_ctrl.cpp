@@ -203,14 +203,17 @@ void RobotCalcNode::legs_update() {
     // auto rb_joint_target_pos=rb_leg_calc->joint_pos(lfrb_cart_target, &result);
     // auto rf_joint_target_pos = rf_leg_calc->joint_pos(rflb_cart_target, &result);
     // auto lb_joint_target_pos=lb_leg_calc->joint_pos(rflb_cart_target, &result);
+
+    //TODO:将解算结果发往下位机
     robot_interfaces::msg::Robot robot_msg;
     robot_msg.legs[0].joints[0].rad=(float)lf_joint_target_pos[0];
     robot_msg.legs[0].joints[1].rad=(float)lf_joint_target_pos[1];
     robot_msg.legs[0].joints[2].rad=(float)lf_joint_target_pos[2];
     robot_msg.legs[0].wheel.omega=0.0f;
+    legs_target_pub->publish(robot_msg);
 
 
-    // TODO:写入目标并发布
+    // TODO:写入目标并发布，通过RVIZ2可视化
     joint_display_msg.position[0] = lf_joint_target_pos[0];
     joint_display_msg.position[1] = lf_joint_target_pos[1];
     joint_display_msg.position[2] = lf_joint_target_pos[2];
