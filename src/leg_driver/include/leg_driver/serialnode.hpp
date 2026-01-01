@@ -17,6 +17,7 @@ public:
 
 private:
     bool exit_thread;
+    bool first_update{true};
     void legsSubscribCb(const robot_interfaces::msg::Robot &msg);
     void publishLegState(const MotorStatePack_t *legs_state);
 

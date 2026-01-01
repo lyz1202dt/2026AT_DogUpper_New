@@ -14,10 +14,10 @@ SerialNode::SerialNode()
     exit_thread = false;
     legs_target.pack_type=0x00;
 
-    this->declare_parameter("joint1_kp", 4.0);
-    this->declare_parameter("joint1_kd", 0.24);
-    this->declare_parameter("joint2_kp", 3.7);
-    this->declare_parameter("joint2_kd", 0.24);
+    this->declare_parameter("joint1_kp", 3.0);
+    this->declare_parameter("joint1_kd", 0.17);
+    this->declare_parameter("joint2_kp", 3.0);
+    this->declare_parameter("joint2_kd", 0.14);
     this->declare_parameter("joint3_kp", 3.0);
     this->declare_parameter("joint3_kd", 0.11);
 
@@ -82,7 +82,8 @@ SerialNode::SerialNode()
     target_send_thread=std::make_unique<std::thread>([this](){
         do{
             auto now = std::chrono::system_clock::now();
-            cdc_trans->send_struct(legs_target);
+            if(!first_update)
+                cdc_trans->send_struct(legs_target);
             std::this_thread::sleep_until(now + 8ms);
         }while (!exit_thread);
     });
@@ -132,4 +133,5 @@ void SerialNode::legsSubscribCb(const robot_interfaces::msg::Robot& msg) {
     }
     //cdc_trans->send_struct(legs_target); // 一旦订阅到最新的包，立即发送到下位机
     RCLCPP_INFO(this->get_logger(), "订阅到电机目标值");
+    first_update=false;
 }

@@ -97,7 +97,7 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     // 首次启动先规划一次步态 UpdateCycloidStep(Eigen::Vector2d(0.0, 0.0), &step_line2, 2.0, 0.0);
     // //步态曲线2规划为静止 UpdateAirStepLine(const Vector3D &cur_pos, const Vector3D &cur_vel,
     // const Vector2D &exp_vel, StepTrajectory_t *line, float time, float step_height)
-    UpdateGndStepLine(Vector3D(0.0, 0.0, 0.0), Vector2D(0.1, 0.0), &gnd_step_line, 2.0);
+    UpdateGndStepLine(Vector3D(0.0, 0.0, 0.0), Vector2D(0.05, 0.0), &gnd_step_line, 2.0);
 }
 
 RobotCalcNode::~RobotCalcNode() { delete vmc; }
@@ -174,12 +174,12 @@ void RobotCalcNode::legs_update() {
         {
             last_switch = false;
             RCLCPP_INFO(node_->get_logger(), "规划支撑相");
-            UpdateGndStepLine(Vector3D(0.05, 0.0, 0.0), Vector2D(0.1, 0.0), &gnd_step_line, 1.0);
+            UpdateGndStepLine(Vector3D(0.025, 0.0, 0.0), Vector2D(0.05, 0.0), &gnd_step_line, 1.0);
         } else {         // 规划并执行摆动步态
             last_switch = true;
             RCLCPP_INFO(node_->get_logger(), "规划摆动相");
             UpdateAirStepLine(
-                Vector3D(-0.05, 0.0, 0.0), Vector3D(-0.1, 0.0, 0.0), Vector2D(0.1, 0.0),
+                Vector3D(-0.025, 0.0, 0.0), Vector3D(-0.1, 0.0, 0.0), Vector2D(0.05, 0.0),
                 &air_step_line, 1.0f, 0.07f);
         }
     }
@@ -209,7 +209,12 @@ void RobotCalcNode::legs_update() {
     robot_msg.legs[0].joints[0].rad=(float)lf_joint_target_pos[0];
     robot_msg.legs[0].joints[1].rad=(float)lf_joint_target_pos[1];
     robot_msg.legs[0].joints[2].rad=(float)lf_joint_target_pos[2];
-    robot_msg.legs[0].wheel.omega=0.0f;
+
+    //robot_msg.legs[0].joints[1].rad=0.9f;
+    robot_msg.legs[1].joints[1].rad=-4.97f/6.33;
+    robot_msg.legs[2].joints[1].rad=4.97f/6.33;
+    robot_msg.legs[3].joints[1].rad=-4.97f/6.33;
+
     legs_target_pub->publish(robot_msg);
 
 
