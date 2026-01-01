@@ -115,7 +115,12 @@ void SerialNode::publishLegState(const MotorStatePack_t* legs_state) {
         msg.legs[i].wheel.omega=legs_state->leg[i].wheel.omega;
         msg.legs[i].wheel.torque=legs_state->leg[i].wheel.torque;
     }
-    RCLCPP_INFO(this->get_logger(), "发布电机状态");
+    state_log_print_cnt++;
+    if(state_log_update_cnt==state_log_print_cnt)
+    {
+        state_log_print_cnt=0;
+        RCLCPP_INFO(this->get_logger(), "发布电机状态");
+    }
     robot_pub->publish(msg);
 }
 
@@ -132,6 +137,12 @@ void SerialNode::legsSubscribCb(const robot_interfaces::msg::Robot& msg) {
         legs_target.leg[i].wheel.torque=msg.legs[i].wheel.torque;
     }
     //cdc_trans->send_struct(legs_target); // 一旦订阅到最新的包，立即发送到下位机
-    RCLCPP_INFO(this->get_logger(), "订阅到电机目标值");
+    target_log_print_cnt++;
+    if(target_log_update_cnt==target_log_print_cnt)
+    {
+        target_log_print_cnt=0;
+        RCLCPP_INFO(this->get_logger(), "订阅到电机目标值");
+    }
+        
     first_update=false;
 }

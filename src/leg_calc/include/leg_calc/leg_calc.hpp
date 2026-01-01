@@ -34,9 +34,9 @@ public:
     void set_leg_state(KDL::JntArray &rad, KDL::JntArray &omega, KDL::JntArray &torque);    //在一个控制周期内，应首先调用它
 
     //int joint_pos(KDL::JntArray &joint_rad, KDL::Vector &foot_pos,KDL::JntArray &result);
-    Eigen::Vector3d joint_pos(Eigen::Vector3d &foot_pos,int  *result);       //稍后需要在线安装IK求解器（手推的解析求解器或者数值迭代器）
+    Eigen::Vector3d joint_pos(const Eigen::Vector3d &foot_pos,int  *result);       //稍后需要在线安装IK求解器（手推的解析求解器或者数值迭代器）
 
-    Eigen::Vector3d joint_vel(Eigen::Vector3d &joint_rad, Eigen::Vector3d &foot_vel);
+    Eigen::Vector3d joint_vel(const Eigen::Vector3d &joint_rad, const Eigen::Vector3d &foot_vel);
 
     //void joint_acc(KDL::JntArray &joint_rad, KDL::JntArray &joint_vel,KDL::Vector foot_acc,KDL::JntArray &result);
 
@@ -44,7 +44,7 @@ public:
 
     Eigen::Vector3d joint_torque_foot_force(const Eigen::Vector3d &joint_rad,const Eigen::Vector3d &foot_force);    //由足端期望力计算的关节力矩
 
-    Eigen::Vector3d foot_force(const Eigen::Vector3d &joint_rad,const Eigen::Vector3d &joint_torque);
+    Eigen::Vector3d foot_force(const Eigen::Vector3d &joint_rad,const Eigen::Vector3d &joint_torque,const Eigen::Vector3d &forward_force=Vector3D(0.0,0.0,0.0));
 
     Eigen::Vector3d foot_vel(const Eigen::Vector3d &joint_rad, const Eigen::Vector3d &joint_omega);
     
