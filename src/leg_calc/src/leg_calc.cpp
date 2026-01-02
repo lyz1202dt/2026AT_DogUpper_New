@@ -19,6 +19,10 @@ LegCalc::LegCalc(KDL::Chain& chain)
     _temp_joint3_array.resize(3);   //提前resize需要用到的KDL::JntArray防止运行时频繁申请/释放内存
     _temp2_joint3_array.resize(3);
     last_exp_joint_pos.resize(3);
+    temp_jacobain.resize(3);
+    C.resize(3);
+    G.resize(3);
+    M.resize(3);
 }
 
 LegCalc::~LegCalc() {
@@ -41,12 +45,11 @@ Eigen::Vector3d LegCalc::joint_pos(const Eigen::Vector3d &foot_pos,int *result) 
 }
 
 Eigen::Vector3d LegCalc::joint_vel(const Eigen::Vector3d &joint_rad, const Eigen::Vector3d &foot_vel) {
-    KDL::Jacobian temp_jac;
     _temp_joint3_array(0)=joint_rad[0];
     _temp_joint3_array(1)=joint_rad[1];
     _temp_joint3_array(2)=joint_rad[2];
-    jacobain_solver.JntToJac(_temp_joint3_array,temp_jac);
-    Eigen::Matrix<double, 3, 3> jacobian = get_3x3_jacobian_(temp_jac);
+    jacobain_solver.JntToJac(_temp_joint3_array,temp_jacobain);
+    Eigen::Matrix<double, 3, 3> jacobian = get_3x3_jacobian_(temp_jacobain);
     return jacobian.inverse()*foot_vel;
 }
 
@@ -94,12 +97,11 @@ Eigen::Vector3d LegCalc::joint_torque_dynamic(const Eigen::Vector3d &joint_rad, 
     @return 关节空间下的力矩
  */
 Eigen::Vector3d LegCalc::joint_torque_foot_force(const Eigen::Vector3d &joint_rad,const Eigen::Vector3d &foot_force){
-    KDL::Jacobian temp_jac;
     _temp_joint3_array(0)=joint_rad[0];
     _temp_joint3_array(1)=joint_rad[1];
     _temp_joint3_array(2)=joint_rad[2];
-    jacobain_solver.JntToJac(_temp_joint3_array,temp_jac);
-    Eigen::Matrix<double, 3, 3> jacobian = get_3x3_jacobian_(temp_jac);
+    jacobain_solver.JntToJac(_temp_joint3_array,temp_jacobain);
+    Eigen::Matrix<double, 3, 3> jacobian = get_3x3_jacobian_(temp_jacobain);
     Eigen::Vector3d torque(foot_force(0),foot_force(1),foot_force(2));
     return jacobian.transpose()* torque;
 }
@@ -111,15 +113,14 @@ Eigen::Vector3d LegCalc::joint_torque_foot_force(const Eigen::Vector3d &joint_ra
     @return 笛卡尔坐标系下的足端受力
  */
 Eigen::Vector3d LegCalc::foot_force(const Eigen::Vector3d &joint_rad,const Eigen::Vector3d &joint_torque,const Eigen::Vector3d &forward_force) {
-    KDL::Jacobian temp_jac;
     _temp_joint3_array(0)=joint_rad[0];
     _temp_joint3_array(1)=joint_rad[1];
     _temp_joint3_array(2)=joint_rad[2];
 
-    jacobain_solver.JntToJac(_temp_joint3_array,temp_jac);
-    auto jacobian = get_3x3_jacobian_(temp_jac);
+    jacobain_solver.JntToJac(_temp_joint3_array,temp_jacobain);
+    auto jacobian = get_3x3_jacobian_(temp_jacobain);
     
-    return jacobian.transpose().inverse()*(joint_torque);
+    return jacobian.transpose().inverse()*(joint_torque-forward_force);
 }
 
 /**
@@ -133,10 +134,9 @@ Eigen::Vector3d LegCalc::foot_vel(const Eigen::Vector3d &joint_rad, const Eigen:
     _temp_joint3_array(1)=joint_rad[1];
     _temp_joint3_array(2)=joint_rad[2];
 
-    KDL::Jacobian temp_jac;
-    jacobain_solver.JntToJac(_temp_joint3_array,temp_jac);
+    jacobain_solver.JntToJac(_temp_joint3_array,temp_jacobain);
 
-    auto jacobian = get_3x3_jacobian_(temp_jac);     //提取雅可比矩阵中与位置相关的部分
+    auto jacobian = get_3x3_jacobian_(temp_jacobain);     //提取雅可比矩阵中与位置相关的部分
     Eigen::Vector3d dq(joint_omega(0),joint_omega(1),joint_omega(2));
     return jacobian*dq;
 }

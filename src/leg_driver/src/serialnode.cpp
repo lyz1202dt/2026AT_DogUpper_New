@@ -16,9 +16,9 @@ SerialNode::SerialNode()
 
     this->declare_parameter("joint1_kp", 3.0);
     this->declare_parameter("joint1_kd", 0.17);
-    this->declare_parameter("joint2_kp", 3.0);
+    this->declare_parameter("joint2_kp", 2.8);
     this->declare_parameter("joint2_kd", 0.14);
-    this->declare_parameter("joint3_kp", 3.0);
+    this->declare_parameter("joint3_kp", 2.8);
     this->declare_parameter("joint3_kd", 0.11);
 
         param_server_ =

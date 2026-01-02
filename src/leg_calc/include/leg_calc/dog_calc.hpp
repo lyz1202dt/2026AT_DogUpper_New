@@ -30,9 +30,8 @@ public:
 private:
     enum DogState {                // 机器人状态机
         DOG_STOP,
-        DOG_STARTINT,
-        DOG_SETP_1,
-        DOG_STEP_2,
+        DOG_STARTING,
+        DOG_SETP,
         DOG_ENDING
     };
 
@@ -40,7 +39,6 @@ private:
     std::tuple<Vector3D, Vector3D, Vector3D> signal_leg_calc(
         const Vector3D& exp_cart_pos, const Vector3D& exp_cart_vel, const Vector3D& exp_cart_acc, const Vector3D& exp_cart_force,
         std::shared_ptr<LegCalc> leg_calc);
-    void signal_leg_state();
     void legs_update();
     void legs_update2();
 
@@ -48,20 +46,14 @@ private:
     rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_server_;
 
     VMC* vmc;
-    std::shared_ptr<VMC> lf_z_vmc,lf_x_vmc,lf_y_vmc;
-    std::shared_ptr<VMC> rf_z_vmc,rf_x_vmc,rf_y_vmc;
-    std::shared_ptr<VMC> lb_z_vmc,lb_x_vmc,lb_y_vmc;
-    std::shared_ptr<VMC> rb_z_vmc,rb_x_vmc,rb_y_vmc;
+    std::shared_ptr<VMC> lf_z_vmc, lf_x_vmc, lf_y_vmc;
+    std::shared_ptr<VMC> rf_z_vmc, rf_x_vmc, rf_y_vmc;
+    std::shared_ptr<VMC> lb_z_vmc, lb_x_vmc, lb_y_vmc;
+    std::shared_ptr<VMC> rb_z_vmc, rb_x_vmc, rb_y_vmc;
 
     bool enable_vmc{false};
     double force_filter_gate{0.8};
-
-    bool update_flag{true};
-
-    CycloidStep_t cycloid_step[4]; // 4个脚的步态
-    float leg_run_time;            // 一个脚步的时间
-    rclcpp::Time last_step1_reset_time, last_step2_reset_time;
-
+    
     rclcpp::TimerBase::SharedPtr ui_update_timer;
     rclcpp::TimerBase::SharedPtr legs_update_timer;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_publisher;
@@ -85,27 +77,37 @@ private:
     std::shared_ptr<LegCalc> lb_leg_calc;
     std::shared_ptr<LegCalc> rb_leg_calc;
 
-    CycloidStep_t step_line1, step_line2;
-    StepTrajectory_t air_step_line;
-    SupportTrajectory_t gnd_step_line;
-    bool last_switch{false};
+    // 步态规划部分
+    Vector2D lf_exp_vel,rf_exp_vel,lb_exp_vel,rb_exp_vel;
+    LegStep lf_leg_step,rf_leg_step,lb_leg_step,rb_leg_step;
 
-    Eigen::Vector3d lf_joint_pos,lf_joint_vel;
-    Eigen::Vector3d rf_joint_pos,rf_joint_vel;
-    Eigen::Vector3d lb_joint_pos,lb_joint_vel;
-    Eigen::Vector3d rb_joint_pos,rb_joint_vel;
-    Eigen::Vector3d lf_forward_torque,lf_joint_torque;
-    Eigen::Vector3d rf_forward_torque,rf_joint_torque;
-    Eigen::Vector3d lb_forward_torque,lb_joint_torque;
-    Eigen::Vector3d rb_forward_torque,rb_joint_torque;
+    double step_time{2.0};  //整个步态全程的时间
+    double step_height{0.1};
+    double step_support_rate{0.5};
+    rclcpp::Time step_phrase1_time,step_phrase2_time;   //第一、二相位步态开始时间
+    bool step1_support_updated{false};
+    bool step2_support_updated{false};
+    bool step1_flight_updated{false};
+    bool step2_flight_updated{false};
+
+    // 数据缓存部分
+    Eigen::Vector3d lf_joint_pos, lf_joint_vel;
+    Eigen::Vector3d rf_joint_pos, rf_joint_vel;
+    Eigen::Vector3d lb_joint_pos, lb_joint_vel;
+    Eigen::Vector3d rb_joint_pos, rb_joint_vel;
+    Eigen::Vector3d lf_forward_torque, lf_joint_torque;
+    Eigen::Vector3d rf_forward_torque, rf_joint_torque;
+    Eigen::Vector3d lb_forward_torque, lb_joint_torque;
+    Eigen::Vector3d rb_forward_torque, rb_joint_torque;
+    int rviz2_update_cnt{0};
 
     sensor_msgs::msg::JointState joint_display_msg;
 
     // 机器人状态
     DogState robot_state{DOG_STOP};
     DogState last_robot_state{DOG_STOP};
-    double robot_lf_grivate{40.0};
-    double robot_rf_grivate{40.0};
-    double robot_lb_grivate{40.0};
-    double robot_rb_grivate{40.0};
+    double robot_lf_grivate{0.0};
+    double robot_rf_grivate{0.0};
+    double robot_lb_grivate{0.0};
+    double robot_rb_grivate{0.0};
 };

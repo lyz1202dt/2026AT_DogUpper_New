@@ -66,6 +66,7 @@ private:
     KDL::JntSpaceInertiaMatrix M;
     KDL::JntArray C;
     KDL::JntArray G;
+    KDL::Jacobian temp_jacobain;
 
     KDL::JntArray last_exp_joint_pos;
 
