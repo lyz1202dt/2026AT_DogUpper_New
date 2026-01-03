@@ -2,6 +2,9 @@
 #include <rcl_interfaces/msg/set_parameters_result.hpp>
 #include <robot_interfaces/msg/move_cmd.hpp>
 #include <memory>
+#include <chrono>
+
+using namespace std::chrono_literals;
 
 class TestMoveNode : public rclcpp::Node{
 public:
@@ -59,9 +62,6 @@ public:
                         }
                     }
                 }
-
-                // publish updated message
-                publish_move_cmd();
                 return result;
             }
         );
@@ -72,6 +72,10 @@ public:
         vz_ = static_cast<float>(this->get_parameter("vz").as_double());
         step_type_ = static_cast<uint32_t>(this->get_parameter("step_type").as_int());
         publish_move_cmd();
+
+        update_timer=this->create_wall_timer(100ms ,[this](){
+            publish_move_cmd();
+        });
     }
 
 private:
@@ -90,6 +94,7 @@ private:
 
     rclcpp::Publisher<robot_interfaces::msg::MoveCmd>::SharedPtr pub_;
     rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_cb_handle_;
+    rclcpp::TimerBase::SharedPtr update_timer;
 
     float vx_{0.0f}, vy_{0.0f}, vz_{0.0f};
     uint32_t step_type_{0};

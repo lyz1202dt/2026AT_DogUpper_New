@@ -92,7 +92,7 @@ private:
 
     double step_time{2.0};  //整个对角步态全程的时间
     double step_height{0.1};
-    double step_support_rate{0.5};
+    double step_support_rate{0.55};
     rclcpp::Time main_phrase_start_time,slave_phrase_start_time;   //第一、二相位步态开始时间
     rclcpp::Time slave_phrase_stop_time;
     bool step1_support_updated{false};
