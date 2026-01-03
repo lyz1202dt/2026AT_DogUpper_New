@@ -40,7 +40,6 @@ private:
         const Vector3D& exp_cart_pos, const Vector3D& exp_cart_vel, const Vector3D& exp_cart_acc, const Vector3D& exp_cart_force,
         std::shared_ptr<LegCalc> leg_calc);
     void legs_update();
-    void legs_update2();
 
     rclcpp::Node::SharedPtr node_;
     rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_server_;
@@ -84,7 +83,8 @@ private:
     double step_time{2.0};  //整个步态全程的时间
     double step_height{0.1};
     double step_support_rate{0.5};
-    rclcpp::Time step_phrase1_time,step_phrase2_time;   //第一、二相位步态开始时间
+    rclcpp::Time main_phrase_start_time,slave_phrase_start_time;   //第一、二相位步态开始时间
+    rclcpp::Time slave_phrase_stop_time;
     bool step1_support_updated{false};
     bool step2_support_updated{false};
     bool step1_flight_updated{false};

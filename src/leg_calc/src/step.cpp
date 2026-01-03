@@ -118,11 +118,19 @@ void LegStep::update_flight_trajectory(
     support_trajectory_is_available = false;
 }
 
-std::tuple<Vector3D, Vector3D, Vector3D> LegStep::get_target(const double time, bool& success) {
+std::tuple<Vector3D, Vector3D, Vector3D> LegStep::get_target(double time, bool& success) {
     Vector3D pos;
     Vector3D vel;
     Vector3D acc;
     if (flight_trajectory_is_available) {
+        if(time>=flight_trajectory.time)
+        {
+            time=flight_trajectory.time;
+            success=false;
+        }
+        else
+            success=true;
+        
         pos[0] = get_quintic_value(flight_trajectory.lx, time);
         vel[0] = get_quintic_dt(flight_trajectory.lx, time);
         acc[0] = get_quintic_dtdt(flight_trajectory.lx, time);
@@ -142,8 +150,15 @@ std::tuple<Vector3D, Vector3D, Vector3D> LegStep::get_target(const double time, 
             vel[2] = get_quintic_dt(flight_trajectory.l2_z, time - flight_trajectory.time * 0.5f);
             acc[2] = get_quintic_dtdt(flight_trajectory.l2_z, time - flight_trajectory.time * 0.5f);
         }
-        success=true;
+        
     } else if (support_trajectory_is_available) {
+        if(time>=support_trajectory.time)
+        {
+            //time=support_trajectory.time;
+            success=false;
+        }
+        else
+            success=true;
         pos[0] = support_trajectory.lx.b + support_trajectory.lx.k * time;
         vel[0] = support_trajectory.lx.k;
 
@@ -152,7 +167,6 @@ std::tuple<Vector3D, Vector3D, Vector3D> LegStep::get_target(const double time, 
 
         pos[2] = support_trajectory.lz.b + support_trajectory.lz.k * time;
         vel[2] = support_trajectory.lz.k;
-        success=true;
     }
     else
         success=false;

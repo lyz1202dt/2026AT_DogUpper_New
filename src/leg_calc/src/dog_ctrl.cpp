@@ -123,7 +123,7 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     joint_display_msg.position.resize(12);
 
     ui_update_timer   = node_->create_wall_timer(50ms, std::bind(&RobotCalcNode::show_callback, this));
-    legs_update_timer = node_->create_wall_timer(10ms, std::bind(&RobotCalcNode::legs_update2, this));
+    legs_update_timer = node_->create_wall_timer(10ms, std::bind(&RobotCalcNode::legs_update, this));
 
     RCLCPP_INFO(node_->get_logger(), "初始化完成");
 }
@@ -209,139 +209,164 @@ std::tuple<Vector3D, Vector3D, Vector3D> RobotCalcNode::signal_leg_calc(
     return std::make_tuple(joint_pos, joint_omega, joint_torque);
 }
 
+
 void RobotCalcNode::legs_update() {
-
-    if (node_->get_clock()->now() - last_step1_reset_time > rclcpp::Duration(1, 0)) { // 足端轨迹更新
-        last_step1_reset_time = node_->get_clock()->now();
-        if (last_switch)                                                              // 规划并执行支撑步态
-        {
-            last_switch = false;
-            RCLCPP_INFO(node_->get_logger(), "规划支撑相");
-            UpdateGndStepLine(Vector3D(0.025, 0.0, 0.0), Vector2D(0.05, 0.0), &gnd_step_line, 1.0);
-        } else {                                                                      // 规划并执行摆动步态
-            last_switch = true;
-            RCLCPP_INFO(node_->get_logger(), "规划摆动相");
-            UpdateAirStepLine(Vector3D(-0.025, 0.0, 0.0), Vector3D(-0.1, 0.0, 0.0), Vector2D(0.05, 0.0), &air_step_line, 1.0f, 0.07f);
-        }
-    }
-
-    // 足端位置解算
-    std::tuple<Vector3D, Vector3D, Vector3D> target1;
-    double now_s = (node_->get_clock()->now() - last_step1_reset_time).seconds();
-    if (last_switch) {
-        target1 = GetQuinticStep(air_step_line, now_s);
-    } else {
-        target1 = GetSupportStep(gnd_step_line, now_s);
-    }
-
-    RCLCPP_INFO(
-        node_->get_logger(), "当前期望坐标:(%lf,%lf,%lf)", std::get<0>(target1)[0], std::get<0>(target1)[1], std::get<0>(target1)[2]);
-    // TODO:计算关节空间期望
-    int result               = 0;
-    auto lf_joint_target_pos = lf_leg_calc->joint_pos(std::get<0>(target1), &result);
-    // auto rb_joint_target_pos=rb_leg_calc->joint_pos(lfrb_cart_target, &result);
-    // auto rf_joint_target_pos = rf_leg_calc->joint_pos(rflb_cart_target, &result);
-    // auto lb_joint_target_pos=lb_leg_calc->joint_pos(rflb_cart_target, &result);
-    0.1f
-        // TODO:将解算结果发往下位机
-        robot_interfaces::msg::Robot robot_msg;
-    robot_msg.legs[0].joints[0].rad = (float)lf_joint_target_pos[0];
-    robot_msg.legs[0].joints[1].rad = (float)lf_joint_target_pos[1];
-    robot_msg.legs[0].joints[2].rad = (float)lf_joint_target_pos[2];
-
-    // robot_msg.legs[0].joints[1].rad=0.9f;
-    robot_msg.legs[1].joints[1].rad = -4.97f / 6.33;
-    robot_msg.legs[2].joints[1].rad = 4.97f / 6.33;
-    robot_msg.legs[3].joints[1].rad = -4.97f / 6.33;
-
-    legs_target_pub->publish(robot_msg);
-
-    // TODO:写入目标并发布，通过RVIZ2可视化
-    joint_display_msg.position[0] = lf_joint_target_pos[0];
-    joint_display_msg.position[1] = lf_joint_target_pos[1];
-    joint_display_msg.position[2] = lf_joint_target_pos[2];
-    // joint_msg.position[3] = rf_joint_target_pos[0];
-    // joint_msg.position[4] = rf_joint_target_pos[1];
-    // joint_msg.position[5] = rf_joint_target_pos[2];
-    // joint_msg.position[6] = lb_joint_target_pos[0];
-    // joint_msg.position[7] = lb_joint_target_pos[1];
-    // joint_msg.position[8] = lb_joint_target_pos[2];
-    // joint_msg.position[9] = rb_joint_target_pos[0];
-    // joint_msg.position[10] = rb_joint_target_pos[1];
-    // joint_msg.position[11] = rb_joint_target_pos[2];
-
-    // RCLCPP_INFO(node_->get_logger(),"完成解算");
-
-    joint_display_msg.header.stamp = node_->get_clock()->now();
-    rviz_joint_publisher->publish(joint_display_msg);
-}
-
-void RobotCalcNode::legs_update2() {
     auto lf_foot_exp_pos   = Vector3D(0.0, 0.0, 0.0);
     auto lf_foot_exp_vel   = Vector3D(0.0, 0.0, 0.0);
+    auto lf_foot_exp_acc   = Vector3D(0.0, 0.0, 0.0);
     auto lf_foot_exp_force = Vector3D(0.0, 0.0, 0.0);
 
     auto rf_foot_exp_pos   = Vector3D(0.0, 0.0, 0.0);
     auto rf_foot_exp_vel   = Vector3D(0.0, 0.0, 0.0);
+    auto rf_foot_exp_acc   = Vector3D(0.0, 0.0, 0.0);
     auto rf_foot_exp_force = Vector3D(0.0, 0.0, 0.0);
 
     auto lb_foot_exp_pos   = Vector3D(0.0, 0.0, 0.0);
     auto lb_foot_exp_vel   = Vector3D(0.0, 0.0, 0.0);
+    auto lb_foot_exp_acc   = Vector3D(0.0, 0.0, 0.0);
     auto lb_foot_exp_force = Vector3D(0.0, 0.0, 0.0);
 
     auto rb_foot_exp_pos   = Vector3D(0.0, 0.0, 0.0);
     auto rb_foot_exp_vel   = Vector3D(0.0, 0.0, 0.0);
+    auto rb_foot_exp_acc   = Vector3D(0.0, 0.0, 0.0);
     auto rb_foot_exp_force = Vector3D(0.0, 0.0, 0.0);
 
-    if (robot_state == DOG_STOP) {            // 狗保持站立
+    if (robot_state == DOG_STOP) {                             // 狗保持站立
         auto lf_cart_pos   = lf_leg_calc->foot_pos(lf_joint_pos);
         auto lf_cart_vel   = lf_leg_calc->foot_vel(lf_joint_pos, lf_joint_vel);
         auto lf_cart_force = lf_leg_calc->foot_force(lf_joint_pos, lf_joint_torque, lf_forward_torque);
-        double lf_foot_acc;                   // ACC计算目前暂时还不可用
-        std::tie(lf_foot_exp_pos[2], lf_foot_exp_vel[2], lf_foot_acc) =
+        std::tie(lf_foot_exp_pos[2], lf_foot_exp_vel[2], lf_foot_exp_acc[2]) =
             lf_z_vmc->targetUpdate(0.0, lf_cart_pos[2], 0.0, lf_cart_vel[2], -lf_cart_force[2]);
         lf_foot_exp_force = Vector3D(0.0, 0.0, -robot_lf_grivate);
 
         auto rf_cart_pos   = rf_leg_calc->foot_pos(rf_joint_pos);
         auto rf_cart_vel   = rf_leg_calc->foot_vel(rf_joint_pos, rf_joint_vel);
         auto rf_cart_force = rf_leg_calc->foot_force(rf_joint_pos, rf_joint_torque, rf_forward_torque);
-        double rf_foot_acc;
-        std::tie(rf_foot_exp_pos[2], rf_foot_exp_vel[2], rf_foot_acc) =
+        std::tie(rf_foot_exp_pos[2], rf_foot_exp_vel[2], rf_foot_exp_acc[2]) =
             rf_z_vmc->targetUpdate(0.0, rf_cart_pos[2], 0.0, rf_cart_vel[2], -rf_cart_force[2]);
         rf_foot_exp_force = Vector3D(0.0, 0.0, -robot_rf_grivate);
 
         auto lb_cart_pos   = lb_leg_calc->foot_pos(lb_joint_pos);
         auto lb_cart_vel   = lb_leg_calc->foot_vel(lb_joint_pos, lb_joint_vel);
         auto lb_cart_force = lb_leg_calc->foot_force(lb_joint_pos, lb_joint_torque, lb_forward_torque);
-        double lb_foot_acc;
-        std::tie(lb_foot_exp_pos[2], lb_foot_exp_vel[2], lb_foot_acc) =
+        std::tie(lb_foot_exp_pos[2], lb_foot_exp_vel[2], lb_foot_exp_acc[2]) =
             lb_z_vmc->targetUpdate(0.0, lb_cart_pos[2], 0.0, lb_cart_vel[2], -lb_cart_force[2]);
         lb_foot_exp_force = Vector3D(0.0, 0.0, -robot_lb_grivate);
 
         auto rb_cart_pos   = rb_leg_calc->foot_pos(rb_joint_pos);
         auto rb_cart_vel   = rb_leg_calc->foot_vel(rb_joint_pos, rb_joint_vel);
         auto rb_cart_force = rb_leg_calc->foot_force(rb_joint_pos, rb_joint_torque, rb_forward_torque);
-        double rb_foot_acc;
-        std::tie(rb_foot_exp_pos[2], rb_foot_exp_vel[2], rb_foot_acc) =
+        std::tie(rb_foot_exp_pos[2], rb_foot_exp_vel[2], rb_foot_exp_acc[2]) =
             rb_z_vmc->targetUpdate(0.0, rb_cart_pos[2], 0.0, rb_cart_vel[2], -rb_cart_force[2]);
         rb_foot_exp_force = Vector3D(0.0, 0.0, -robot_rb_grivate);
-    } else if (robot_state == DOG_STARTING) { // 狗处于开始前进状态，规划一次初相位轨迹
-        step_phrase1_time = node_->get_clock()->now();
-        step_phrase2_time = node_->get_clock()->now();
-        lf_leg_step.update_flight_trajectory(lf_leg_calc->foot_pos(lf_joint_pos), Vector3D(0.0, 0.0, 0.0), lf_exp_vel, ((1.0 - step_support_rate) * step_time), step_height);
-        rf_leg_step.update_support_trajectory(rf_leg_calc->foot_pos(rf_joint_pos), rf_exp_vel, std::abs(1.0 - 2.0 * step_support_rate));
-        step1_support_updated = false;        // 设置足端轨迹更新状态
+    } else if (robot_state == DOG_STARTING) {                  // 狗处于开始前进状态，规划一次初相位轨迹
+        auto now=node_->get_clock()->now();
+        main_phrase_start_time  = now;
+        slave_phrase_start_time = now;
+        slave_phrase_stop_time=now+rclcpp::Duration(std::chrono::duration<double>((std::abs(2.0 * step_support_rate - 1.0)+(1.0-step_support_rate)*step_time)));    //预规划从相位支撑相结束时间
+        lf_leg_step.update_flight_trajectory(
+            lf_leg_calc->foot_pos(lf_joint_pos), Vector3D(0.0, 0.0, 0.0), lf_exp_vel, ((1.0 - step_support_rate) * step_time), step_height);
+        rf_leg_step.update_support_trajectory(
+            rf_leg_calc->foot_pos(rf_joint_pos), rf_exp_vel, std::abs(2.0 * step_support_rate - 1.0) * step_time);
+        step1_support_updated = false;                         // 设置足端轨迹更新状态
         step1_flight_updated  = true;
         step2_flight_updated  = false;
         step2_support_updated = true;
-        robot_state=DOG_SETP;
-    }
-    else if(robot_state==DOG_SETP)  //机器人正在正常执行步态
+        robot_state           = DOG_SETP;   //初始相
+    } else if (robot_state == DOG_SETP)                        // 机器人正在正常执行步态
     {
-        auto now=node_->get_clock()->now();
-        if(now-step_phrase1_time>rclcpp::Duration(std::chrono::duration<double>()))
-        {
+        auto now = node_->get_clock()->now();
+        // TODO:利用LegStep类的轨迹计算是否成功的判据来决定是否开启
+        if (step1_flight_updated && (!step1_support_updated)) {        // 处于足端飞行相
+            if (now - main_phrase_start_time > rclcpp::Duration(
+                    std::chrono::duration<double>(
+                        (1.0 - step_support_rate) * step_time))) {     // 如果主相位飞行相已经结束，那么立即规划主相位支撑相
+                step1_support_updated = true;                          // 设置足端轨迹更新状态
+                step1_flight_updated  = false;
+                slave_phrase_stop_time =
+                    now                                                // 从相位支撑相结束时间等于主相位飞行相结束时间+T*(2*α-1)/2
+                    + rclcpp::Duration(std::chrono::duration<double>(std::abs(2.0 * step_support_rate - 1.0) * step_time));
+                lf_leg_step.update_support_trajectory(lf_leg_calc->foot_pos(lf_joint_pos), lf_exp_vel, step_support_rate * step_time);
+                main_phrase_start_time = now;
+            }
+        } else if (step1_support_updated && (!step1_flight_updated)) { // 处于足端支撑相
+            if (now - main_phrase_start_time > rclcpp::Duration(
+                    std::chrono::duration<double>(step_support_rate) * step_time)) { // 如果主相位飞行相已经结束，那么立即规划主相位支撑相
+                step1_support_updated = false;                                       // 设置足端轨迹更新状态
+                step1_flight_updated  = true;
+                lf_leg_step.update_flight_trajectory(
+                    lf_leg_calc->foot_pos(lf_joint_pos), lf_leg_calc->foot_vel(lf_joint_pos, lf_joint_vel), lf_exp_vel,
+                    step_time * (1.0 - step_support_rate), step_height);
+                main_phrase_start_time = now;
+            }
+        }
 
+
+        if (step2_flight_updated && (!step2_support_updated)) {                      // 如果从相位处于飞行相
+            if (now - slave_phrase_start_time > rclcpp::Duration(
+                    std::chrono::duration<double>(
+                        (1.0 - step_support_rate) * step_time)))                     // 如果主相位飞行相已经结束，那么立即规划主相位支撑相
+            {
+                step2_support_updated = true;                                        // 设置足端轨迹更新状态
+                step2_flight_updated  = false;
+                rf_leg_step.update_support_trajectory(
+                    rf_leg_calc->foot_pos(rf_joint_pos), rf_exp_vel,
+                    step_support_rate * step_time);                                  // 预更新支撑相(精确结束时间由主相位确定)
+                slave_phrase_start_time = now;
+            }
+        } else if (step2_support_updated && (!step2_flight_updated)) {               // 如果从相位处于支撑相(调相位)
+            if (now > slave_phrase_stop_time)  // 如果到达了由主相位确定的从相位支撑相结束时间，那么更新从相位飞行相
+            {
+                step2_support_updated = false; // 设置足端轨迹更新状态
+                step2_flight_updated  = true;
+                rf_leg_step.update_flight_trajectory(
+                    rf_leg_calc->foot_pos(rf_joint_pos), rf_leg_calc->foot_vel(rf_joint_pos, rf_joint_vel), rf_exp_vel,
+                    (1.0 - step_support_rate * step_time),
+                    step_height);              // 预更新支撑相(精确结束时间由主相位确定)
+                slave_phrase_start_time = now;
+            }
+        }
+
+        bool success = false;
+        std::tie(lf_foot_exp_pos, lf_foot_exp_vel, lf_foot_exp_acc) =
+            lf_leg_step.get_target((now - main_phrase_start_time).seconds(), success); // 得到狗腿当前期望
+        std::tie(rf_foot_exp_pos, rf_foot_exp_vel, rf_foot_exp_acc) =
+            rf_leg_step.get_target((now - slave_phrase_start_time).seconds(), success);
+        std::tie(lb_foot_exp_pos, lb_foot_exp_vel, lb_foot_exp_acc) =
+            lb_leg_step.get_target((now - slave_phrase_start_time).seconds(), success);
+        std::tie(rb_foot_exp_pos, rb_foot_exp_vel, rb_foot_exp_acc) =
+            rb_leg_step.get_target((now - main_phrase_start_time).seconds(), success);
+        
+        if (step1_support_updated) {                                                   // 主相位需要VMC计算
+            auto lf_cart_pos   = lf_leg_calc->foot_pos(lf_joint_pos);
+            auto lf_cart_vel   = lf_leg_calc->foot_vel(lf_joint_pos, lf_joint_vel);
+            auto lf_cart_force = lf_leg_calc->foot_force(lf_joint_pos, lf_joint_torque, lf_forward_torque);
+            std::tie(lf_foot_exp_pos[2], lf_foot_exp_vel[2], lf_foot_exp_acc[2]) =
+                lf_z_vmc->targetUpdate(lf_foot_exp_pos[2], lf_cart_pos[2], lf_foot_exp_vel[2], lf_cart_vel[2], -lf_cart_force[2]);
+            lf_foot_exp_force = Vector3D(0.0, 0.0, -robot_lf_grivate);
+            // 主相为左前与右后对角支撑，同时对右后腿使用VMC进行竖直方向的修正
+            auto rb_cart_pos   = rb_leg_calc->foot_pos(rb_joint_pos);
+            auto rb_cart_vel   = rb_leg_calc->foot_vel(rb_joint_pos, rb_joint_vel);
+            auto rb_cart_force = rb_leg_calc->foot_force(rb_joint_pos, rb_joint_torque, rb_forward_torque);
+            std::tie(rb_foot_exp_pos[2], rb_foot_exp_vel[2], rb_foot_exp_acc[2]) =
+                rb_z_vmc->targetUpdate(rb_foot_exp_pos[2], rb_cart_pos[2], rb_foot_exp_vel[2], rb_cart_vel[2], -rb_cart_force[2]);
+            rb_foot_exp_force = Vector3D(0.0, 0.0, -robot_rb_grivate);
+        }
+        if (step2_support_updated) {                                                   // 从相位需要VMC计算
+            // 从相为右前与左后对角支撑，对右前和左后腿进行竖直方向VMC修正
+            auto rf_cart_pos   = rf_leg_calc->foot_pos(rf_joint_pos);
+            auto rf_cart_vel   = rf_leg_calc->foot_vel(rf_joint_pos, rf_joint_vel);
+            auto rf_cart_force = rf_leg_calc->foot_force(rf_joint_pos, rf_joint_torque, rf_forward_torque);
+            std::tie(rf_foot_exp_pos[2], rf_foot_exp_vel[2], rf_foot_exp_acc[2]) =
+                rf_z_vmc->targetUpdate(rf_foot_exp_pos[2], rf_cart_pos[2], rf_foot_exp_vel[2], rf_cart_vel[2], -rf_cart_force[2]);
+            rf_foot_exp_force = Vector3D(0.0, 0.0, -robot_rf_grivate);
+
+            auto lb_cart_pos   = lb_leg_calc->foot_pos(lb_joint_pos);
+            auto lb_cart_vel   = lb_leg_calc->foot_vel(lb_joint_pos, lb_joint_vel);
+            auto lb_cart_force = lb_leg_calc->foot_force(lb_joint_pos, lb_joint_torque, lb_forward_torque);
+            std::tie(lb_foot_exp_pos[2], lb_foot_exp_vel[2], lb_foot_exp_acc[2]) =
+                lb_z_vmc->targetUpdate(lb_foot_exp_pos[2], lb_cart_pos[2], lb_foot_exp_vel[2], lb_cart_vel[2], -lb_cart_force[2]);
+            lb_foot_exp_force = Vector3D(0.0, 0.0, -robot_lb_grivate);
         }
     }
 

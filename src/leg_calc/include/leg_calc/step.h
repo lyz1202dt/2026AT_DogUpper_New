@@ -58,7 +58,7 @@ public:
         const Vector3D& cur_pos, const Vector3D& cur_vel, const Vector3D& exp_pos, const Vector2D& exp_vel, double time, double step_height);
     void update_support_trajectory(const Vector3D& cur_pos, const Vector2D& exp_vel, double time);
     void update_support_trajectory(const Vector3D& cur_pos, const Vector3D final_pos, double time);
-    std::tuple<Vector3D, Vector3D, Vector3D> get_target(const double time,bool &success);
+    std::tuple<Vector3D, Vector3D, Vector3D> get_target(double time,bool &success);
 
 private:
     bool flight_trajectory_is_available{false};
