@@ -90,24 +90,33 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
             }
         });
 
-    //订阅机器人的运动期望
-    move_cmd_sub=node_->create_subscription<robot_interfaces::msg::MoveCmd>("move_cmd",10,
-        [this](const robot_interfaces::msg::MoveCmd& msg){
-            if(msg.step_mode==DOG_REQ_STOP) //请求状态为停止
+    // 订阅机器人的运动期望
+    move_cmd_sub =
+        node_->create_subscription<robot_interfaces::msg::MoveCmd>("robot_move_cmd", 10, [this](const robot_interfaces::msg::MoveCmd& msg) {
+            if (msg.step_mode == DOG_REQ_STOP) // 请求状态为停止
             {
-                robot_req_state=DOG_REQ_STOP;
+                robot_req_state = DOG_REQ_STOP;
+            } else if (msg.step_mode == DOG_REQ_RUN) {
+                Vector3D v_body(msg.vx, msg.vy, 0.0);
+                Vector3D omega(0.0, 0.0, msg.vz);
+
+                // LF
+                Vector3D v_lf = v_body + omega.cross(lf_leg_calc->pos_offset);
+                lf_exp_vel    = Vector2D(v_lf[0], v_lf[1]);
+
+                // RF
+                Vector3D v_rf = v_body + omega.cross(rf_leg_calc->pos_offset);
+                rf_exp_vel    = Vector2D(v_rf[0], v_rf[1]);
+
+                // LB
+                Vector3D v_lb = v_body + omega.cross(lb_leg_calc->pos_offset);
+                lb_exp_vel    = Vector2D(v_lb[0], v_lb[1]);
+
+                // RB
+                Vector3D v_rb = v_body + omega.cross(rb_leg_calc->pos_offset);
+                rb_exp_vel    = Vector2D(v_rb[0], v_rb[1]);
             }
-            else if(msg.step_mode==DOG_REQ_RUN)
-            {
-                robot_req_state=DOG_REQ_RUN;
-                lf_exp_vel=Vector3D(msg.vx,msg.vy,0.0);
-                rb_exp_vel=lb_exp_vel=rf_exp_vel=lf_exp_vel;
-                auto exp_vel=Vector3D(0.0,0.0,msg.vz);
-                lf_exp_vel=lf_exp_vel+lf_leg_calc->pos_offset.cross(exp_vel);   //计算足端的期望速度
-                rf_exp_vel=rf_exp_vel+rf_leg_calc->pos_offset.cross(exp_vel);
-                lb_exp_vel=lb_exp_vel+lb_leg_calc->pos_offset.cross(exp_vel);
-                rb_exp_vel=rb_exp_vel+rb_leg_calc->pos_offset.cross(exp_vel);
-            }
+            RCLCPP_INFO(node_->get_logger(), "接收到期望更新消息:lf:(%lf,%lf)", lf_exp_vel[0], lf_exp_vel[1]);
         });
 
     robot_description_param_ = std::make_shared<rclcpp::SyncParametersClient>(node_, "/robot_state_publisher");
@@ -119,7 +128,7 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
         return;
     }
 
-    kdl_parser::treeFromString(urdf_xml, tree);                                                 // 解析四条腿的KDL树结构
+    kdl_parser::treeFromString(urdf_xml, tree); // 解析四条腿的KDL树结构
     tree.getChain("body_link", "lf_link4", lf_leg_chain);
     tree.getChain("body_link", "rf_link4", rf_leg_chain);
     tree.getChain("body_link", "lb_link4", lb_leg_chain);
@@ -311,6 +320,7 @@ void RobotCalcNode::legs_update() {
         robot_state = DOG_SETP;         // 初始相
     } else if (robot_state == DOG_SETP) // 机器人正在正常执行步态
     {
+        RCLCPP_INFO(node_->get_logger(),"行走步态");
         auto now = node_->get_clock()->now();
         // TODO:利用LegStep类的轨迹计算是否成功的判据来决定是否开启
         if (step1_flight_updated && (!step1_support_updated)) {        // 处于足端飞行相
