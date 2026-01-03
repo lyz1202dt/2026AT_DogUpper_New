@@ -4,6 +4,7 @@
 #include "step.h"
 #include "vmc.hpp"
 #include <Eigen/Dense>
+#include <Eigen/src/Core/Matrix.h>
 #include <chrono>
 #include <ctime>
 #include <geometry_msgs/msg/point.hpp>
@@ -17,17 +18,19 @@
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/subscription.hpp>
 #include <robot_interfaces/msg/robot.hpp>
+#include <robot_interfaces/msg/move_cmd.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
 #include <std_msgs/msg/color_rgba.hpp>
 #include <tuple>
 #include <visualization_msgs/msg/marker.hpp>
+
 
 class RobotCalcNode {
 public:
     RobotCalcNode(const rclcpp::Node::SharedPtr node);
     ~RobotCalcNode();
 
-private:
+
     enum DogState {                // 机器人状态机
         DOG_STOP,
         DOG_STARTING,
@@ -35,6 +38,12 @@ private:
         DOG_ENDING
     };
 
+    enum DogReqState{  //请求的机器人状态
+        DOG_REQ_STOP,
+        DOG_REQ_RUN
+    };
+
+private:
     void show_callback();
     std::tuple<Vector3D, Vector3D, Vector3D> signal_leg_calc(
         const Vector3D& exp_cart_pos, const Vector3D& exp_cart_vel, const Vector3D& exp_cart_acc, const Vector3D& exp_cart_force,
@@ -58,6 +67,7 @@ private:
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_publisher;
     rclcpp::Publisher<robot_interfaces::msg::Robot>::SharedPtr legs_target_pub;
     rclcpp::Subscription<robot_interfaces::msg::Robot>::SharedPtr legs_state_sub;
+    rclcpp::Subscription<robot_interfaces::msg::MoveCmd>::SharedPtr move_cmd_sub;
     rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr rviz_joint_publisher;
     rclcpp::SyncParametersClient::SharedPtr robot_description_param_;
 
@@ -80,7 +90,7 @@ private:
     Vector2D lf_exp_vel,rf_exp_vel,lb_exp_vel,rb_exp_vel;
     LegStep lf_leg_step,rf_leg_step,lb_leg_step,rb_leg_step;
 
-    double step_time{2.0};  //整个步态全程的时间
+    double step_time{2.0};  //整个对角步态全程的时间
     double step_height{0.1};
     double step_support_rate{0.5};
     rclcpp::Time main_phrase_start_time,slave_phrase_start_time;   //第一、二相位步态开始时间
@@ -101,11 +111,13 @@ private:
     Eigen::Vector3d rb_forward_torque, rb_joint_torque;
     int rviz2_update_cnt{0};
 
+    Eigen::Vector3d lf_leg_stop_pos,rf_leg_stop_pos,lb_leg_stop_pos,rb_leg_stop_pos;
+
     sensor_msgs::msg::JointState joint_display_msg;
 
     // 机器人状态
     DogState robot_state{DOG_STOP};
-    DogState last_robot_state{DOG_STOP};
+    DogReqState robot_req_state{DOG_REQ_STOP}; //请求的机器人状态
     double robot_lf_grivate{0.0};
     double robot_rf_grivate{0.0};
     double robot_lb_grivate{0.0};

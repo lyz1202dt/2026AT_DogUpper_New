@@ -170,6 +170,7 @@ std::tuple<Vector3D, Vector3D, Vector3D> LegStep::get_target(double time, bool& 
     }
     else
         success=false;
+    return std::make_tuple(pos,vel,acc);
 }
 
 
