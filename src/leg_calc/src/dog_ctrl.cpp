@@ -17,6 +17,16 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     lb_z_vmc = std::make_shared<VMC>(200, 60, 4.0, 0.5, 0.2, 0.1, 10ms);
     rb_z_vmc = std::make_shared<VMC>(200, 60, 4.0, 0.5, 0.2, 0.1, 10ms);
 
+    lf_x_vmc=std::make_shared<VMC>(160,60,3.0,0.5,0.2,0.1,10ms);
+    lf_y_vmc=std::make_shared<VMC>(160,60,3.0,0.5,0.2,0.1,10ms);
+    rf_x_vmc=std::make_shared<VMC>(160,60,3.0,0.5,0.2,0.1,10ms);
+    rf_y_vmc=std::make_shared<VMC>(160,60,3.0,0.5,0.2,0.1,10ms);
+    lb_x_vmc=std::make_shared<VMC>(160,60,3.0,0.5,0.2,0.1,10ms);
+    lb_y_vmc=std::make_shared<VMC>(160,60,3.0,0.5,0.2,0.1,10ms);
+    rb_x_vmc=std::make_shared<VMC>(160,60,3.0,0.5,0.2,0.1,10ms);
+    rb_y_vmc=std::make_shared<VMC>(160,60,3.0,0.5,0.2,0.1,10ms);
+
+
     node_->declare_parameter("force_filter_gate", 0.8);
     node_->declare_parameter("enable_vmc", false);
     node_->declare_parameter("vmc_kp", 350.0);
