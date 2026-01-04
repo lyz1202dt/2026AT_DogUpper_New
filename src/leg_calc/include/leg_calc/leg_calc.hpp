@@ -26,6 +26,7 @@
 #include <kdl/chainfksolverpos_recursive.hpp>
 #include <kdl/chainiksolvervel_pinv.hpp>   // ← 你缺的就是它
 #include <kdl/chainiksolverpos_lma.hpp>
+#include <kdl/chainjnttojacdotsolver.hpp>
 
 class LegCalc{
 public:
@@ -38,7 +39,7 @@ public:
 
     Eigen::Vector3d joint_vel(const Eigen::Vector3d &joint_rad, const Eigen::Vector3d &foot_vel);
 
-    //void joint_acc(KDL::JntArray &joint_rad, KDL::JntArray &joint_vel,KDL::Vector foot_acc,KDL::JntArray &result);
+    Eigen::Vector3d joint_acc(const Eigen::Vector3d &joint_rad, const Eigen::Vector3d &joint_vel,Eigen::Vector3d foot_acc);
 
     Eigen::Vector3d joint_torque_dynamic(const Eigen::Vector3d &joint_rad, const Eigen::Vector3d &joint_omega, const Eigen::Vector3d &joint_acc);
 
@@ -57,12 +58,12 @@ private:
     KDL::Chain chain;
     KDL::ChainFkSolverPos_recursive fk_solver;  //关节位置->足端位置
     KDL::ChainJntToJacSolver jacobain_solver;        //求解雅可比矩阵
-    KDL::ChainIkSolverVel_pinv vel_solver;     //
+    KDL::ChainJntToJacDotSolver jdot_solver;         //求解dJdq
+    KDL::ChainIkSolverVel_pinv vel_solver;          //
     KDL::ChainIkSolverPos_LMA ik_pos_solver;    //计算期望关节位置
-    
     KDL::ChainDynParam dynamin_solver;         //关节运动状态->关节力矩
-    KDL::ChainJntToJacSolver force_solver;       //关节力矩->足端力(通常需要减去动力学给的力)
-
+    
+    //计算数据缓存区
     KDL::JntSpaceInertiaMatrix M;
     KDL::JntArray C;
     KDL::JntArray G;
@@ -72,4 +73,7 @@ private:
 
     KDL::JntArray _temp_joint3_array;
     KDL::JntArray _temp2_joint3_array;
+
+    KDL::JntArrayVel _temp_joint3_vel_array;
+    KDL::Twist _temp_jdot_qd;
 };

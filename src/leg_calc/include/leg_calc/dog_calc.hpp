@@ -90,8 +90,8 @@ private:
     Vector2D lf_exp_vel,rf_exp_vel,lb_exp_vel,rb_exp_vel;
     LegStep lf_leg_step,rf_leg_step,lb_leg_step,rb_leg_step;
 
-    double step_time{2.0};  //整个对角步态全程的时间
-    double step_height{0.1};
+    double step_time{1.0};  //整个对角步态全程的时间
+    double step_height{0.08};
     double step_support_rate{0.55};
     rclcpp::Time main_phrase_start_time,slave_phrase_start_time;   //第一、二相位步态开始时间
     rclcpp::Time slave_phrase_stop_time;

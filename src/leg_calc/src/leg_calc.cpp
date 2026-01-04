@@ -12,10 +12,11 @@ LegCalc::LegCalc(KDL::Chain& chain)
     : chain(chain)
     , fk_solver(chain)
     , jacobain_solver(chain)
+    , jdot_solver(chain)
     , vel_solver(chain)
     ,ik_pos_solver(chain, Eigen::Vector<double,6>(1.0, 1.0, 1.0, 0.0, 0.0, 0.0),1e-6,150,1e-10)
     , dynamin_solver(chain, KDL::Vector(0, 0, -9.81))
-    , force_solver(chain){
+    {
     _temp_joint3_array.resize(3);   //提前resize需要用到的KDL::JntArray防止运行时频繁申请/释放内存
     _temp2_joint3_array.resize(3);
     last_exp_joint_pos.resize(3);
@@ -27,6 +28,19 @@ LegCalc::LegCalc(KDL::Chain& chain)
 
 LegCalc::~LegCalc() {
 
+}
+
+
+
+Eigen::Matrix<double, 3, 3> LegCalc::get_3x3_jacobian_(KDL::Jacobian &full_jacobian)     //只关心前三行的映射关系
+{
+    Eigen::Matrix<double, 3, 3> jacobian_3x3;
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            jacobian_3x3(i, j)       = full_jacobian(i, j);
+        }
+    }
+    return jacobian_3x3;
 }
 
 
@@ -53,15 +67,31 @@ Eigen::Vector3d LegCalc::joint_vel(const Eigen::Vector3d &joint_rad, const Eigen
     return jacobian.inverse()*foot_vel;
 }
 
-Eigen::Matrix<double, 3, 3> LegCalc::get_3x3_jacobian_(KDL::Jacobian &full_jacobian)     //只关心前三行的映射关系
+
+/**
+    @brief 计算关节角加速度
+    @param joint_rad 关节角度向量
+    @param joint_vel 关节角速度
+    @param foot_acc  期望的足端加速度
+    @return 关节角加速度向量
+ */
+Eigen::Vector3d LegCalc::joint_acc(const Eigen::Vector3d &joint_rad, const Eigen::Vector3d &joint_vel,Eigen::Vector3d foot_acc)
 {
-    Eigen::Matrix<double, 3, 3> jacobian_3x3;
-    for (int i = 0; i < 3; ++i) {
-        for (int j = 0; j < 3; ++j) {
-            jacobian_3x3(i, j)       = full_jacobian(i, j);
-        }
+    _temp_joint3_array.data=joint_rad;
+    _temp2_joint3_array.data=joint_vel;
+    _temp_joint3_vel_array.q.data=joint_rad;
+    _temp_joint3_vel_array.qdot.data=joint_vel;
+
+    //计算雅可比矩阵J
+    jacobain_solver.JntToJac(_temp_joint3_array, temp_jacobain);
+    jdot_solver.JntToJacDot(_temp_joint3_vel_array,_temp_jdot_qd);
+
+    Eigen::Matrix3d Jac=get_3x3_jacobian_(temp_jacobain);
+    Vector3D jdot_dq_eigen;
+    for(int i=0;i<3;i++){
+        jdot_dq_eigen[i]=_temp_jdot_qd(i);
     }
-    return jacobian_3x3;
+    return Jac.completeOrthogonalDecomposition().solve(foot_acc - jdot_dq_eigen);
 }
 
 Eigen::Vector3d LegCalc::joint_torque_dynamic(const Eigen::Vector3d &joint_rad, const Eigen::Vector3d &joint_omega, const Eigen::Vector3d &joint_acc) {
@@ -160,3 +190,4 @@ Eigen::Vector3d LegCalc::foot_pos(const Eigen::Vector3d& joint_rad) {
 
     return temp-pos_offset; //temp是在机器人坐标系下的足端位置，要转换成支撑相中型点的坐标输出
 }
+
