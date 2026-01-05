@@ -42,6 +42,7 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     node_->declare_parameter("step_time", 1.0);                                                 // 一个完整步态时间
     node_->declare_parameter("step_height", 0.08);
 
+
     param_server_ = node_->add_on_set_parameters_callback([this](const std::vector<rclcpp::Parameter>& params) {
         rcl_interfaces::msg::SetParametersResult result;
         result.successful = true;
@@ -74,6 +75,8 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
         }
         return result;
     });
+
+    robot_rotation.setRPY(0.0,0.0,0.0);
 
     marker_publisher = node_->create_publisher<visualization_msgs::msg::Marker>("visualization_marker", 10);
 
