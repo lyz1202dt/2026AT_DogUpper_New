@@ -99,6 +99,11 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
                 lb_joint_torque[i] = (double)msg.legs[2].joints[i].torque;
                 rb_joint_torque[i] = (double)msg.legs[3].joints[i].torque;
             }
+            robot_rotation.setRPY(0.0, 0.0, 0.0);
+            robot_velocity.angular.x=0.0;
+            robot_velocity.angular.y=0.0;
+            robot_velocity.angular.z=0.0;
+            //机器人的线速度需要在别的地方计算
         });
 
     // 订阅机器人的运动期望
@@ -139,6 +144,8 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
         RCLCPP_ERROR(node_->get_logger(), "无法读取URDF文件，不能进行动力学计算");
         return;
     }
+
+    robot_tf_broadcaster=std::make_unique<tf2_ros::TransformBroadcaster>(node_);
 
     kdl_parser::treeFromString(urdf_xml, tree); // 解析四条腿的KDL树结构
     tree.getChain("body_link", "lf_link4", lf_leg_chain);
@@ -194,6 +201,22 @@ void RobotCalcNode::show_callback() {
     // dot_marker.color.b = 0.0;
 
     // marker_publisher->publish(dot_marker); // 发布点标记（狗腿足端位置）
+
+    geometry_msgs::msg::TransformStamped t;
+    t.header.stamp = node_->get_clock()->now();
+    t.header.frame_id = "world";
+    t.child_frame_id = "body_link";
+    t.transform.translation.x = 0.0;
+    t.transform.translation.y = 0.0;
+    t.transform.translation.z = 0.0;
+
+    t.transform.rotation.x = robot_rotation.x();
+    t.transform.rotation.y = robot_rotation.y();
+    t.transform.rotation.z = robot_rotation.z();
+    t.transform.rotation.w = robot_rotation.w();
+
+    robot_tf_broadcaster->sendTransform(t);
+
 
     visualization_msgs::msg::Marker arraw_marker;
     arraw_marker.header.frame_id = "body_link"; // 选择你在 TF 树中有的 frame
@@ -306,8 +329,7 @@ void RobotCalcNode::legs_update() {
             rb_z_vmc->targetUpdate(0.0, rb_cart_pos[2], 0.0, rb_cart_vel[2], -rb_cart_force[2]);
         rb_foot_exp_force = Vector3D(0.0, 0.0, -robot_rb_grivate);
 
-        if (robot_req_state == DOG_REQ_RUN)                    // 如果请求转移到行走状态，那么机器人状态先跳转到开始行走状态
-        {
+        if (robot_req_state == DOG_REQ_RUN){                    // 如果请求转移到行走状态，那么机器人状态先跳转到开始行走状态
             robot_state = DOG_STARTING;
         }
     } else if (robot_state == DOG_STARTING) {                  // 狗处于开始前进状态，规划一次初相位轨迹
@@ -329,7 +351,7 @@ void RobotCalcNode::legs_update() {
             (std::abs(2.0 * step_support_rate - 1.0) * 0.5 + 1.0 - step_support_rate) * step_time);
         rb_leg_step.update_flight_trajectory(
             lf_leg_calc->foot_pos(lf_joint_pos), Vector3D(0.0, 0.0, 0.0), lf_exp_vel, ((1.0 - step_support_rate) * step_time), step_height);
-        step1_support_updated = false;                                                                       // 设置足端轨迹更新状态
+        step1_support_updated = false;             // 设置足端轨迹更新状态
         step1_flight_updated  = true;
         step2_flight_updated  = false;
         step2_support_updated = true;
@@ -483,12 +505,12 @@ void RobotCalcNode::legs_update() {
         robot_state = DOG_STOP;
     }
 
-    auto lf_leg_joints_target = signal_leg_calc(lf_foot_exp_pos, lf_foot_exp_vel, Vector3D(0.0, 0.0, 0.0), lf_foot_exp_force, lf_leg_calc);
-    auto rf_leg_joints_target = signal_leg_calc(rf_foot_exp_pos, rf_foot_exp_vel, Vector3D(0.0, 0.0, 0.0), rf_foot_exp_force, rf_leg_calc);
-    auto lb_leg_joints_target = signal_leg_calc(lb_foot_exp_pos, lb_foot_exp_vel, Vector3D(0.0, 0.0, 0.0), lb_foot_exp_force, lb_leg_calc);
-    auto rb_leg_joints_target = signal_leg_calc(rb_foot_exp_pos, rb_foot_exp_vel, Vector3D(0.0, 0.0, 0.0), rb_foot_exp_force, rb_leg_calc);
+    auto lf_leg_joints_target = signal_leg_calc(lf_foot_exp_pos, lf_foot_exp_vel, lf_foot_exp_acc, lf_foot_exp_force, lf_leg_calc);
+    auto rf_leg_joints_target = signal_leg_calc(rf_foot_exp_pos, rf_foot_exp_vel, rf_foot_exp_acc, rf_foot_exp_force, rf_leg_calc);
+    auto lb_leg_joints_target = signal_leg_calc(lb_foot_exp_pos, lb_foot_exp_vel, lb_foot_exp_acc, lb_foot_exp_force, lb_leg_calc);
+    auto rb_leg_joints_target = signal_leg_calc(rb_foot_exp_pos, rb_foot_exp_vel, rb_foot_exp_acc, rb_foot_exp_force, rb_leg_calc);
 
-    lf_forward_torque = std::get<2>(lf_leg_joints_target);
+    lf_forward_torque = std::get<2>(lf_leg_joints_target);      //更新本周期计算的前馈力矩准备用作下一个控制周期的计算
     rf_forward_torque = std::get<2>(rf_leg_joints_target);
     lb_forward_torque = std::get<2>(lb_leg_joints_target);
     rb_forward_torque = std::get<2>(rb_leg_joints_target);

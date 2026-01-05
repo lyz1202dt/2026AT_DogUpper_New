@@ -7,6 +7,7 @@
 #include <Eigen/src/Core/Matrix.h>
 #include <chrono>
 #include <ctime>
+#include <geometry_msgs/msg/detail/twist__struct.hpp>
 #include <geometry_msgs/msg/point.hpp>
 #include <kdl/chain.hpp>
 #include <kdl/frames.hpp>
@@ -23,6 +24,11 @@
 #include <std_msgs/msg/color_rgba.hpp>
 #include <tuple>
 #include <visualization_msgs/msg/marker.hpp>
+#include <tf2_ros/transform_broadcaster.h>
+#include <geometry_msgs/msg/transform_stamped.hpp>
+#include <geometry_msgs/msg/twist.hpp>
+#include <tf2/LinearMath/Quaternion.h>
+
 
 
 class RobotCalcNode {
@@ -70,6 +76,7 @@ private:
     rclcpp::Subscription<robot_interfaces::msg::MoveCmd>::SharedPtr move_cmd_sub;
     rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr rviz_joint_publisher;
     rclcpp::SyncParametersClient::SharedPtr robot_description_param_;
+    std::unique_ptr<tf2_ros::TransformBroadcaster> robot_tf_broadcaster;
 
     std::vector<std::string> joint_names = {"lf_joint1", "lf_joint2", "lf_joint3", "rf_joint1", "rf_joint2", "rf_joint3",
                                             "lb_joint1", "lb_joint2", "lb_joint3", "rb_joint1", "rb_joint2", "rb_joint3"};
@@ -122,4 +129,7 @@ private:
     double robot_rf_grivate{0.0};
     double robot_lb_grivate{0.0};
     double robot_rb_grivate{0.0};
+    
+    tf2::Quaternion robot_rotation;                    //机器人姿态
+    geometry_msgs::msg::Twist robot_velocity;          //机器人速度信息
 };

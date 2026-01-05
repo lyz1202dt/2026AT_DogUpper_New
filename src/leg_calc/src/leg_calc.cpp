@@ -21,6 +21,8 @@ LegCalc::LegCalc(KDL::Chain& chain)
     _temp2_joint3_array.resize(3);
     last_exp_joint_pos.resize(3);
     temp_jacobain.resize(3);
+    _temp_joint3_vel_array.resize(3);
+    
     C.resize(3);
     G.resize(3);
     M.resize(3);
@@ -32,7 +34,7 @@ LegCalc::~LegCalc() {
 
 
 
-Eigen::Matrix<double, 3, 3> LegCalc::get_3x3_jacobian_(KDL::Jacobian &full_jacobian)     //只关心前三行的映射关系
+Eigen::Matrix<double, 3, 3> LegCalc::get_3x3_jacobian_(const KDL::Jacobian &full_jacobian)     //只关心前三行的映射关系
 {
     Eigen::Matrix<double, 3, 3> jacobian_3x3;
     for (int i = 0; i < 3; ++i) {
@@ -94,7 +96,7 @@ Eigen::Vector3d LegCalc::joint_acc(const Eigen::Vector3d &joint_rad, const Eigen
     return Jac.completeOrthogonalDecomposition().solve(foot_acc - jdot_dq_eigen);
 }
 
-Eigen::Vector3d LegCalc::joint_torque_dynamic(const Eigen::Vector3d &joint_rad, const Eigen::Vector3d &joint_omega, const Eigen::Vector3d &joint_acc) {
+Eigen::Vector3d LegCalc::joint_torque_dynamic(const Eigen::Vector3d &joint_rad, const Eigen::Vector3d &joint_omega, const Eigen::Vector3d &foot_acc) {
     _temp_joint3_array(0)=joint_rad[0];
     _temp_joint3_array(1)=joint_rad[1];
     _temp_joint3_array(2)=joint_rad[2];
@@ -117,7 +119,7 @@ Eigen::Vector3d LegCalc::joint_torque_dynamic(const Eigen::Vector3d &joint_rad, 
         }
     }
     // 7. 计算前馈力矩 tau
-    return M_ * joint_acc + C_ + G_;
+    return M_ * joint_acc(joint_rad, joint_omega,foot_acc) + C_ + G_;
 }
 
 /**
