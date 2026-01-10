@@ -59,4 +59,5 @@ double SimpleVMC::update(const double pos_in,const double vel_in,const double po
         force=out_limit;
     else if(force<-out_limit)
         force=-out_limit;
+    return force;
 }

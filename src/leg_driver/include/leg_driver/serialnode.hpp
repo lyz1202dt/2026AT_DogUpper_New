@@ -17,15 +17,25 @@ public:
 
 private:
     bool exit_thread;
+    bool first_update{true};
+    int state_log_print_cnt{0};
+    int target_log_print_cnt{0};
+    int state_log_update_cnt{50};
+    int target_log_update_cnt{50};
+    bool enable_control{false};
     void legsSubscribCb(const robot_interfaces::msg::Robot &msg);
-    void publishLegState(const LegPack_t *legs_state);
+    void publishLegState(const MotorStatePack_t *legs_state);
 
     std::unique_ptr<CDCTrans> cdc_trans;
     std::unique_ptr<std::thread> usb_event_handle_thread;
     std::unique_ptr<std::thread> target_send_thread;
-    LegPack_t legs_target;
+    MotorTargetPack_t legs_target;
     rclcpp::Publisher<robot_interfaces::msg::Robot>::SharedPtr robot_pub;
     rclcpp::Subscription<robot_interfaces::msg::Robot>::SharedPtr robot_sub;
+
+    OnSetParametersCallbackHandle::SharedPtr param_server_;
+
+    double joint_kp[3],joint_kd[3];
 };
 
 #endif
