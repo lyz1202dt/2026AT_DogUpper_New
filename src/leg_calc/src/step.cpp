@@ -3,9 +3,8 @@
 #include <rclcpp/rclcpp.hpp>
 #include <tuple>
 
-static inline void set_quintic(
-    QuinticLineParam_t& seg, double p0, double v0, double a0, double pT, double vT, double aT,
-    float dt) {
+static inline void
+    set_quintic(LegStep::QuinticLineParam_t& seg, double p0, double v0, double a0, double pT, double vT, double aT, double dt) {
     double T  = dt;
     double T2 = T * T;
     double T3 = T2 * T;
@@ -24,162 +23,164 @@ static inline void set_quintic(
     seg.f = (6 * (pT - p0) - (3 * v0 + 3 * vT) * T - (0.5 * a0 - 0.5 * aT) * T2) / T5;
 }
 
-static inline float get_quintic_value(const QuinticLineParam_t& line, const float time) {
-    return line.a + line.b * time + line.c * time * time + line.d * time * time * time
-         + line.e * time * time * time * time + line.f * time * time * time * time * time;
+static inline double get_quintic_value(const LegStep::QuinticLineParam_t& line, const double time) {
+    return line.a + line.b * time + line.c * time * time + line.d * time * time * time + line.e * time * time * time * time
+         + line.f * time * time * time * time * time;
 }
 
-static inline float get_quintic_dt(const QuinticLineParam_t& line, const float time) {
-    return line.b + 2.0f * line.c * time + 3.0f * line.d * time * time
-         + 4.0f * line.e * time * time * time + 5.0f * line.f * time * time * time * time;
+static inline double get_quintic_dt(const LegStep::QuinticLineParam_t& line, const double time) {
+    return line.b + 2.0f * line.c * time + 3.0f * line.d * time * time + 4.0f * line.e * time * time * time
+         + 5.0f * line.f * time * time * time * time;
 }
 
-static inline float get_quintic_dtdt(const QuinticLineParam_t& line, const float time) {
-    return 2.0f * line.c + 6.0f * line.d * time + 12.0f * line.e * time * time
-         + 20.0f * line.f * time * time * time;
+static inline double get_quintic_dtdt(const LegStep::QuinticLineParam_t& line, const double time) {
+    return 2.0f * line.c + 6.0f * line.d * time + 12.0f * line.e * time * time + 20.0f * line.f * time * time * time;
 }
 
-std::tuple<Vector3D, Vector3D, Vector3D> GetQuinticStep(StepTrajectory_t& line, float time) {
-    Vector3D pos;
-    Vector3D vel;
-    Vector3D acc;
+LegStep::LegStep() {}
 
-    // X 方向五次多项式
-    pos[0] = get_quintic_value(line.lx, time);
-    vel[0] = get_quintic_dt(line.lx, time);
-    acc[0] = get_quintic_dtdt(line.lx, time);
-
-    // Y 方向五次多项式
-    pos[1] = get_quintic_value(line.ly, time);
-    vel[1] = get_quintic_dt(line.ly, time);
-    acc[1] = get_quintic_dtdt(line.ly, time);
-
-    // Z 方向分两段（前半抬腿，后半落腿）
-    if (time < line.time * 0.5f) {
-        pos[2] = get_quintic_value(line.l1_z, time);
-        vel[2] = get_quintic_dt(line.l1_z, time);
-        acc[2] = get_quintic_dtdt(line.l1_z, time);
-    } else {
-        pos[2] = get_quintic_value(line.l2_z, time - line.time * 0.5f);
-        vel[2] = get_quintic_dt(line.l2_z, time - line.time * 0.5f);
-        acc[2] = get_quintic_dtdt(line.l2_z, time - line.time * 0.5f);
-    }
-    return std::make_tuple(pos, vel, acc);
-}
-
-std::tuple<Vector3D, Vector3D, Vector3D> GetSupportStep(SupportTrajectory_t& line, float time) {
-    Vector3D pos;
-    Vector3D vel;
-
-    pos[0] = line.lx.b + line.lx.k * time;
-    vel[0] = line.lx.k;
-
-    pos[1] = line.ly.b + line.ly.k * time;
-    vel[1] = line.ly.k;
-
-    pos[2] = line.lz.b + line.lz.k * time;
-    vel[2] = line.lz.k;
-
-    return std::make_tuple(pos, vel, Vector3D(0.0, 0.0, 0.0));
-}
-
-bool UpdateGndStepLine(
-    const Vector3D& cur_pos, const Vector2D& exp_vel, SupportTrajectory_t* line, float time) {
-    double target_x = -exp_vel[0] * time * 0.5; // 理想情况下，足端轨迹中心应该过足端坐标系的中点
+void LegStep::update_support_trajectory(const Vector3D& cur_pos, const Vector2D& exp_vel, double time) {
+    double target_x = -exp_vel[0] * time * 0.5;            // 理想情况下，足端轨迹中心应该过足端坐标系的中点
     double target_y = -exp_vel[1] * time * 0.5;
 
-    line->time = time;                          // 记录一个步态相位的时间
+    support_trajectory.time = time;                        // 记录一个步态相位的时间
 
-    line->lx.k = (target_x - cur_pos[0]) / time;
-    line->lx.b = cur_pos[0];
+    support_trajectory.lx.k = (target_x - cur_pos[0]) / time;
+    support_trajectory.lx.b = cur_pos[0];
 
-    line->ly.k = (target_y - cur_pos[1]) / time;
-    line->ly.b = cur_pos[1];
+    support_trajectory.ly.k = (target_y - cur_pos[1]) / time;
+    support_trajectory.ly.b = cur_pos[1];
 
-    line->lz.k = -cur_pos[2] / time;
-    line->lz.b = cur_pos[2];
+    support_trajectory.lz.k = -cur_pos[2] / time;
+    support_trajectory.lz.b = cur_pos[2];
 
-    return true;
+    flight_trajectory_is_available  = false;
+    support_trajectory_is_available = true;
 }
 
-bool UpdateGndStepLine(
-    const Vector3D& cur_pos, const Vector3D final_pos, SupportTrajectory_t* line, float time) {
+void LegStep::update_support_trajectory(const Vector3D& cur_pos, const Vector3D final_pos, double time) {
+    support_trajectory.time = time;                        // 记录一个步态相位的时间
 
-    line->time = time;                          // 记录一个步态相位的时间
+    support_trajectory.lx.k = (final_pos[0] - cur_pos[0]) / time;
+    support_trajectory.lx.b = cur_pos[0];
 
-    line->lx.k = (final_pos[0] - cur_pos[0]) / time;
-    line->lx.b = cur_pos[0];
+    support_trajectory.ly.k = (final_pos[1] - cur_pos[1]) / time;
+    support_trajectory.ly.b = cur_pos[1];
 
-    line->ly.k = (final_pos[1] - cur_pos[1]) / time;
-    line->ly.b = cur_pos[1];
+    support_trajectory.lz.k = (final_pos[2] - cur_pos[2]) / time;
+    support_trajectory.lz.b = cur_pos[2];
 
-    line->lz.k = (final_pos[2] - cur_pos[2]) / time;
-    line->lz.b = cur_pos[2];
-
-    return true;
+    flight_trajectory_is_available  = false;
+    support_trajectory_is_available = true;
 }
 
-/**
-    @brief 生成抬腿步态，根据期望速度自动计算最佳落脚点
- */
-bool UpdateAirStepLine(
-    const Vector3D& cur_pos, const Vector3D& cur_vel, const Vector2D& exp_vel,
-    StepTrajectory_t* line, float time, float step_height) {
-
+void LegStep::update_flight_trajectory(
+    const Vector3D& cur_pos, const Vector3D& cur_vel, const Vector2D& exp_vel, double time, double step_height) {
     double target_x = exp_vel[0] * time * 0.5;
     double target_y = exp_vel[1] * time * 0.5;
 
-    line->time = time;
+    flight_trajectory.time = time;
 
     set_quintic(
-        line->lx, cur_pos[0], cur_vel[0], 0.0, // 起点
-        target_x, -exp_vel[0], 0.0, time);     // 终点
+        flight_trajectory.lx, cur_pos[0], cur_vel[0], 0.0, // 起点
+        target_x, -exp_vel[0], 0.0, time);                 // 终点
     // y方向轨迹
-    set_quintic(line->ly, cur_pos[1], cur_vel[1], 0.0, target_y, -exp_vel[1], 0.0, time);
+    set_quintic(flight_trajectory.ly, cur_pos[1], cur_vel[1], 0.0, target_y, -exp_vel[1], 0.0, time);
     // z方向分为两段：抬腿 -> 落腿
     // 第一段：从当前z抬到最高点
-    set_quintic(line->l1_z, cur_pos[2], cur_vel[2], 0.0, step_height, 0.0, 0.0, time * 0.5f);
+    set_quintic(flight_trajectory.l1_z, cur_pos[2], cur_vel[2], 0.0, step_height, 0.0, 0.0, time * 0.5f);
 
     // 第二段：从最高点落到地面
-    set_quintic(line->l2_z, step_height, 0.0, 0.0, 0.0, 0.0, 0.0, time * 0.5f);
+    set_quintic(flight_trajectory.l2_z, step_height, 0.0, 0.0, 0.0, 0.0, 0.0, time * 0.5f);
 
-    return true;
+    flight_trajectory_is_available  = true;
+    support_trajectory_is_available = false;
 }
 
-/**
-    @brief 给定落脚点坐标，规划完整抬脚曲线
- */
-bool UpdateAirStepLine(
-    const Vector3D& cur_pos, const Vector3D& cur_vel, const Vector2D& exp_vel,
-    const Vector3D final_pos, StepTrajectory_t* line, float time, float step_height) {
+void LegStep::update_flight_trajectory(
+    const Vector3D& cur_pos, const Vector3D& cur_vel, const Vector3D& exp_pos, const Vector2D& exp_vel, double time, double step_height) {
 
-    line->time = time;
+    flight_trajectory.time = time;
 
     set_quintic(
-        line->lx, cur_pos[0], cur_vel[0], 0.0, // 起点
-        final_pos[0], -exp_vel[0], 0.0, time); // 终点
+        flight_trajectory.lx, cur_pos[0], cur_vel[0], 0.0, // 起点
+        exp_pos[0], -exp_vel[0], 0.0, time);               // 终点
     // y方向轨迹
-    set_quintic(line->ly, cur_pos[1], cur_vel[1], 0.0, final_pos[1], -exp_vel[1], 0.0, time);
+    set_quintic(flight_trajectory.ly, cur_pos[1], cur_vel[1], 0.0, exp_pos[1], -exp_vel[1], 0.0, time);
     // z方向分为两段：抬腿 -> 落腿
     // 第一段：从当前z抬到最高点
-    set_quintic(line->l1_z, cur_pos[2], cur_vel[2], 0.0, step_height, 0.0, 0.0, time * 0.5f);
+    set_quintic(flight_trajectory.l1_z, cur_pos[2], cur_vel[2], 0.0, step_height, 0.0, 0.0, time * 0.5f);
 
     // 第二段：从最高点落到地面
-    set_quintic(line->l2_z, step_height, 0.0, 0.0, final_pos[2], 0.0, 0.0, time * 0.5f);
+    set_quintic(flight_trajectory.l2_z, step_height, 0.0, 0.0, exp_pos[2], 0.0, 0.0, time * 0.5f);
 
-    return true;
+    flight_trajectory_is_available  = true;
+    support_trajectory_is_available = false;
 }
 
-bool UpdateCycloidStep(
-    const Vector2D& exp_vel, CycloidStep_t* line, float time, float step_height) {
-    line->Lx =
-        exp_vel[0]
-        * time; // 步长应该是期望速度乘以半个步态周期，但是转换到机器人坐标系后需要乘以整个步态周期因为机器人在向前移动
+std::tuple<Vector3D, Vector3D, Vector3D> LegStep::get_target(double time, bool& success) {
+    Vector3D pos;
+    Vector3D vel;
+    Vector3D acc;
+    if (flight_trajectory_is_available) {
+        if(time>=flight_trajectory.time)
+        {
+            time=flight_trajectory.time;
+            success=false;
+        }
+        else
+            success=true;
+        
+        pos[0] = get_quintic_value(flight_trajectory.lx, time);
+        vel[0] = get_quintic_dt(flight_trajectory.lx, time);
+        acc[0] = get_quintic_dtdt(flight_trajectory.lx, time);
+
+        // Y 方向五次多项式
+        pos[1] = get_quintic_value(flight_trajectory.ly, time);
+        vel[1] = get_quintic_dt(flight_trajectory.ly, time);
+        acc[1] = get_quintic_dtdt(flight_trajectory.ly, time);
+
+        // Z 方向分两段（前半抬腿，后半落腿）
+        if (time < flight_trajectory.time * 0.5f) {
+            pos[2] = get_quintic_value(flight_trajectory.l1_z, time);
+            vel[2] = get_quintic_dt(flight_trajectory.l1_z, time);
+            acc[2] = get_quintic_dtdt(flight_trajectory.l1_z, time);
+        } else {
+            pos[2] = get_quintic_value(flight_trajectory.l2_z, time - flight_trajectory.time * 0.5f);
+            vel[2] = get_quintic_dt(flight_trajectory.l2_z, time - flight_trajectory.time * 0.5f);
+            acc[2] = get_quintic_dtdt(flight_trajectory.l2_z, time - flight_trajectory.time * 0.5f);
+        }
+        
+    } else if (support_trajectory_is_available) {
+        if(time>=support_trajectory.time)
+        {
+            //time=support_trajectory.time;
+            success=false;
+        }
+        else
+            success=true;
+        pos[0] = support_trajectory.lx.b + support_trajectory.lx.k * time;
+        vel[0] = support_trajectory.lx.k;
+
+        pos[1] = support_trajectory.ly.b + support_trajectory.ly.k * time;
+        vel[1] = support_trajectory.ly.k;
+
+        pos[2] = support_trajectory.lz.b + support_trajectory.lz.k * time;
+        vel[2] = support_trajectory.lz.k;
+    }
+    else
+        success=false;
+    return std::make_tuple(pos,vel,acc);
+}
+
+
+bool UpdateCycloidStep(const Vector2D& exp_vel, CycloidStep_t* line, float time, float step_height) {
+    line->Lx = exp_vel[0] * time; // 步长应该是期望速度乘以半个步态周期，但是转换到机器人坐标系后需要乘以整个步态周期因为机器人在向前移动
     line->Ly = exp_vel[1] * time;
     line->H  = step_height;
-    line->T  = time * 0.5f;    // 实际上，摆动相只占整个步态的一半时间
+    line->T  = time * 0.5f;       // 实际上，摆动相只占整个步态的一半时间
 
-    line->exp_vx = exp_vel[0]; // 当前速度估计（认为机器人足端位置的速度就是期望速度）
+    line->exp_vx = exp_vel[0];    // 当前速度估计（认为机器人足端位置的速度就是期望速度）
     line->exp_vy = exp_vel[1];
     return true;
 }
@@ -191,7 +192,7 @@ std::tuple<Vector3D, Vector3D, Vector3D> GetCycloidStep(float time, CycloidStep_
 
     Vector3D pos, vel, acc;
 
-    if (s <= 1.0f) {           // 摆动相
+    if (s <= 1.0f) {              // 摆动相
         // 位置
         pos[0] = line.Lx * (2 * pi * s - std::sin(2 * pi * s)) / (2 * pi) - line.exp_vx * time;
         pos[1] = line.Ly * (2 * pi * s - std::sin(2 * pi * s)) / (2 * pi) - line.exp_vy * time;

@@ -45,6 +45,10 @@ src/dog_ctrl.cpp
 src/step.cpp
 src/vmc.cpp)
 
+add_executable(test_move_node
+  src/test.cpp
+)
+
 
 target_include_directories(leg_calc
   PUBLIC
@@ -71,8 +75,15 @@ ament_target_dependencies(
   kdl_parser
 )
 
+ament_target_dependencies(
+  test_move_node
+  rclcpp
+  robot_interfaces
+)
+
 install(TARGETS
 leg_calc
+test_move_node
 DESTINATION lib/${PROJECT_NAME}
 )
 
