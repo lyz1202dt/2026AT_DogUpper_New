@@ -20,6 +20,7 @@ SerialNode::SerialNode()
     this->declare_parameter("joint2_kd", 0.14);
     this->declare_parameter("joint3_kp", 2.8);
     this->declare_parameter("joint3_kd", 0.11);
+    this->declare_parameter("enable_control",false);
 
         param_server_ =
         this->add_on_set_parameters_callback([this](const std::vector<rclcpp::Parameter>& params) {
@@ -39,6 +40,8 @@ SerialNode::SerialNode()
                     joint_kp[2] = param.as_double();
                 else if (param.get_name() == "joint3_kd")
                     joint_kd[2] = param.as_double();
+                else if(param.get_name() == "enable_control")
+                    enable_control=param.as_bool();
             }
             return result;
         });
@@ -82,7 +85,7 @@ SerialNode::SerialNode()
     target_send_thread=std::make_unique<std::thread>([this](){
         do{
             auto now = std::chrono::system_clock::now();
-            if(!first_update)
+            if((!first_update)&&enable_control)
                 cdc_trans->send_struct(legs_target);
             std::this_thread::sleep_until(now + 8ms);
         }while (!exit_thread);

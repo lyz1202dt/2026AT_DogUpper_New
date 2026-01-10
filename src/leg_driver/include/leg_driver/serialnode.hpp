@@ -22,6 +22,7 @@ private:
     int target_log_print_cnt{0};
     int state_log_update_cnt{50};
     int target_log_update_cnt{50};
+    bool enable_control{false};
     void legsSubscribCb(const robot_interfaces::msg::Robot &msg);
     void publishLegState(const MotorStatePack_t *legs_state);
 

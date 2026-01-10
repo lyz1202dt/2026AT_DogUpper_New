@@ -38,6 +38,7 @@ public:
 
 
     enum DogState {                // 机器人状态机
+        DOG_IDEL,
         DOG_STOP,
         DOG_STARTING,
         DOG_SETP,
@@ -45,6 +46,7 @@ public:
     };
 
     enum DogReqState{  //请求的机器人状态
+        DOG_REQ_IDEL,
         DOG_REQ_STOP,
         DOG_REQ_RUN
     };
@@ -97,8 +99,10 @@ private:
     Vector2D lf_exp_vel,rf_exp_vel,lb_exp_vel,rb_exp_vel;
     LegStep lf_leg_step,rf_leg_step,lb_leg_step,rb_leg_step;
 
-    double step_time{1.0};  //整个对角步态全程的时间
+    double step_time{0.8};  //整个对角步态全程的时间
     double step_height{0.08};
+    double foot_base_height{0.0};
+    double foot_pos_base_offset{-0.25};
     double step_support_rate{0.55};
     rclcpp::Time main_phrase_start_time,slave_phrase_start_time;   //第一、二相位步态开始时间
     rclcpp::Time slave_phrase_stop_time;
@@ -124,11 +128,15 @@ private:
 
     // 机器人状态
     DogState robot_state{DOG_STOP};
-    DogReqState robot_req_state{DOG_REQ_STOP}; //请求的机器人状态
+    DogReqState robot_req_state{DOG_REQ_IDEL}; //请求的机器人状态
     double robot_lf_grivate{0.0};
     double robot_rf_grivate{0.0};
     double robot_lb_grivate{0.0};
     double robot_rb_grivate{0.0};
+    double robot_lf_dx{0.25};
+    double robot_rf_dx{0.25};
+    double robot_lb_dx{-0.23};
+    double robot_rb_dx{-0.23};
     
     tf2::Quaternion robot_rotation;                    //机器人姿态
     geometry_msgs::msg::Twist robot_velocity;          //机器人速度信息
