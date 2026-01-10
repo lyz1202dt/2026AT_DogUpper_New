@@ -10,7 +10,7 @@ def generate_launch_description():
         "urdf", "dog.urdf"
     )
 
-    controller_ymal=os.path.join(
+    controller_yaml=os.path.join(
         get_package_share_directory("launch_pack"),
         "config", "ros2_controller.yaml"
     )
@@ -25,12 +25,12 @@ def generate_launch_description():
         parameters=[{"robot_description": robot_desc}]
     )
 
-    gz_sim_create=Node(package="ros_gz_sim",executable="create",
-    arguments=["-name", "dog","-topic", "robot_description"],
-    output="screen")
+    # gz_sim_create=Node(package="ros_gz_sim",executable="create",
+    # arguments=["-name", "dog","-topic", "robot_description"],
+    # output="screen")
     
-    # 启动 gz sim
-    gezebo_start=ExecuteProcess(cmd=["gz", "sim", "-r", "empty.sdf"],output="screen")
+    # # 启动 gz sim
+    # gezebo_start=ExecuteProcess(cmd=["gz", "sim", "-r", "empty.sdf"],output="screen")
 
     # 启动 controller manager 并加载配置文件中的 controller（不要把 yaml 当作 spawner 的参数）
     # controller_manager_node = Node(
@@ -43,9 +43,8 @@ def generate_launch_description():
     ros2_control_manager = Node(
         package="controller_manager",
         executable="ros2_control_node",
-        parameters=[controller_ymal,
-                    robot_desc,
-                    {'hardware': 'gz_ros2_control'}
+        parameters=[controller_yaml,
+                    {"robot_description": robot_desc},
         ],
         output="screen"
     )

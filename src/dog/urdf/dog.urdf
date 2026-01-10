@@ -7,15 +7,15 @@
   name="dog">
 
   <gazebo>
-    <plugin
-      name="gz_ros2_control::GazeboSimROS2ControlPlugin"
-      filename="libgz_ros2_control-system.so"/>
+    <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimRos2ControlPlugin">
+    </plugin>
   </gazebo>
 
   <ros2_control name="dog_system" type="system">
 
   <hardware>
-    <plugin>gz_ros2_control/GazeboSystem</plugin>
+    <plugin>mock_components/GenericSystem</plugin>
+    <!-- <plugin>gz_ros2_control/GazeboSystem</plugin> -->
   </hardware>
 
     <joint name="lf_joint1">
@@ -33,13 +33,16 @@
       <command_interface name="effort"/>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
+      <state_interface name="effort"/>
     </joint>
 
     <joint name="lf_joint3">
       <command_interface name="position"/>
+      <command_interface name="velocity"/>
       <command_interface name="effort"/>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
+      <state_interface name="effort"/>
     </joint>
 
     <joint name="rf_joint1">
@@ -57,6 +60,7 @@
       <command_interface name="effort"/>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
+      <state_interface name="effort"/>
     </joint>
 
     <joint name="rf_joint3">
@@ -65,6 +69,7 @@
       <command_interface name="effort"/>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
+      <state_interface name="effort"/>
     </joint>
 
     <joint name="lb_joint1">
@@ -82,6 +87,7 @@
       <command_interface name="effort"/>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
+      <state_interface name="effort"/>
     </joint>
 
     <joint name="lb_joint3">
@@ -90,6 +96,7 @@
       <command_interface name="effort"/>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
+      <state_interface name="effort"/>
     </joint>
 
     <joint name="rb_joint1">
@@ -107,6 +114,7 @@
       <command_interface name="effort"/>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
+      <state_interface name="effort"/>
     </joint>
 
     <joint name="rb_joint3">
@@ -115,6 +123,7 @@
       <command_interface name="effort"/>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
+      <state_interface name="effort"/>
     </joint>
 
 </ros2_control>

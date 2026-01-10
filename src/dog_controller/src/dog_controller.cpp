@@ -13,6 +13,7 @@ controller_interface::CallbackReturn DogController::on_init() {
         "legs_target", 10, [this](const robot_interfaces::msg::Robot& msg) { joints_target = msg; });
     joints_name_ = {"lf_joint1", "lf_joint2", "lf_joint3", "rf_joint1", "rf_joint2", "rf_joint3",
                     "lb_joint1", "lb_joint2", "lb_joint3", "rb_joint1", "rb_joint2", "rb_joint3"};
+    return controller_interface::CallbackReturn::SUCCESS;
 }
 
 controller_interface::CallbackReturn DogController::on_configure(const rclcpp_lifecycle::State& previous_state) {
@@ -46,6 +47,7 @@ controller_interface::return_type DogController::update(const rclcpp::Time& time
         command_interfaces_[i * 3 + 1].set_value((double)joints_target.legs[i / 3].joints[i % 3].omega);
         command_interfaces_[i * 3 + 2].set_value((double)joints_target.legs[i / 3].joints[i % 3].torque);
     }
+    return controller_interface::return_type::OK;
 }
 
 controller_interface::InterfaceConfiguration DogController::command_interface_configuration() const {
