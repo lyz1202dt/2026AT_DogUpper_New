@@ -567,35 +567,30 @@ void RobotCalcNode::legs_update() {
     lb_forward_torque = std::get<2>(lb_leg_joints_target);
     rb_forward_torque = std::get<2>(rb_leg_joints_target);
 
-    // 填写关节目标并发布
+    //发布话题控制ROS2_control控制器、物理机器人
     robot_interfaces::msg::Robot joints_target;
     for (int i = 0; i < 3; i++) {
         joints_target.legs[0].joints[i].rad    = (float)std::get<0>(lf_leg_joints_target)[i];
         joints_target.legs[0].joints[i].omega  = (float)std::get<1>(lf_leg_joints_target)[i];
-        joints_target.legs[0].joints[i].torque = (float)std::get<2>(lf_leg_joints_target)[i];
+        joints_target.legs[0].joints[i].torque = 0.0;
 
         joints_target.legs[1].joints[i].rad    = (float)std::get<0>(rf_leg_joints_target)[i];
         joints_target.legs[1].joints[i].omega  = (float)std::get<1>(rf_leg_joints_target)[i];
-        joints_target.legs[1].joints[i].torque = (float)std::get<2>(rf_leg_joints_target)[i];
+        joints_target.legs[1].joints[i].torque = 0.0;
 
         joints_target.legs[2].joints[i].rad    = (float)std::get<0>(lb_leg_joints_target)[i];
         joints_target.legs[2].joints[i].omega  = (float)std::get<1>(lb_leg_joints_target)[i];
-        joints_target.legs[2].joints[i].torque = (float)std::get<2>(lb_leg_joints_target)[i];
+        joints_target.legs[2].joints[i].torque = 0.0;
 
         joints_target.legs[3].joints[i].rad    = (float)std::get<0>(rb_leg_joints_target)[i];
         joints_target.legs[3].joints[i].omega  = (float)std::get<1>(rb_leg_joints_target)[i];
-        joints_target.legs[3].joints[i].torque = (float)std::get<2>(rb_leg_joints_target)[i];
+        joints_target.legs[3].joints[i].torque = 0.0;
     }
     legs_target_pub->publish(joints_target);
 
     rviz2_update_cnt++;
-    if (rviz2_update_cnt == 5) {
+    if (rviz2_update_cnt == 5) {    //发布话题在RVIZ2中查看
         rviz2_update_cnt = 0;
-
-        // RCLCPP_INFO(
-        //     node_->get_logger(), "关节目标:omega:(%lf,%lf,%lf) torque:(%lf,%lf,%lf)", joints_target.legs[0].joints[0].omega,
-        //     joints_target.legs[0].joints[1].omega,
-        //     joints_target.legs[0].joints[2].omega,joints_target.legs[0].joints[0].torque,joints_target.legs[0].joints[1].torque,joints_target.legs[0].joints[2].torque);
 
         joint_display_msg.position[0] = lf_joint_pos[0];
         joint_display_msg.position[1] = lf_joint_pos[1];
@@ -612,6 +607,9 @@ void RobotCalcNode::legs_update() {
         joint_display_msg.position[9]  = rb_joint_pos[0];
         joint_display_msg.position[10] = rb_joint_pos[1];
         joint_display_msg.position[11] = rb_joint_pos[2];
+
+        // for(int i=0;i<12;i++)   //在RVIZ2中显示期望
+        //     joint_display_msg.position[i]=joints_target.legs[i/3].joints[i%3].rad;
 
         joint_display_msg.header.stamp = node_->get_clock()->now();
         rviz_joint_publisher->publish(joint_display_msg);

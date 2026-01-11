@@ -2,32 +2,48 @@ controller_manager:
   ros__parameters:
     update_rate: 500
 
+    # 控制器声明：必须在这里定义控制器名称和类型
     dog_controller:
       type: dog_controller/DogController
 
     dog_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
 
-  dog_controller:
-     ros__parameters:
-       joints:
-         - lf_joint1
-         - lf_joint2
-         - lf_joint3
-         - rf_joint1
-         - rf_joint2
-         - rf_joint3
-         - lb_joint1
-         - lb_joint2
-         - lb_joint3
-         - rb_joint1
-         - rb_joint2
-         - rb_joint3
-       command_interfaces:		#关节接受位置输入
-         - position
-         - velocity
-         - torque
-       state_interfaces:		#关节反馈位置和速度
-         - position
-         - velocity
-         - torque
+# 具体控制器的参数配置：必须与 controller_manager 同级
+dog_controller:
+  ros__parameters:
+    joints:
+      - lf_joint1
+      - lf_joint2
+      - lf_joint3
+      - rf_joint1
+      - rf_joint2
+      - rf_joint3
+      - lb_joint1
+      - lb_joint2
+      - lb_joint3
+      - rb_joint1
+      - rb_joint2
+      - rb_joint3
+    command_interfaces:
+      - position
+      - velocity
+      - effort    # 注意：在 ign_ros2_control 中，力矩通常写作 effort 而不是 torque
+    state_interfaces:
+      - position
+      - velocity
+      - effort
+    
+    gains:
+      lf_joint1: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
+      lf_joint2: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
+      lf_joint3: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
+      rf_joint1: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
+      rf_joint2: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
+      rf_joint3: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
+      lb_joint1: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
+      lb_joint2: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
+      lb_joint3: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
+      rb_joint1: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
+      rb_joint2: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
+      rb_joint3: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
