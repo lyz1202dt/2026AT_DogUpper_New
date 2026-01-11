@@ -26,24 +26,22 @@ dog_controller:
       - rb_joint2
       - rb_joint3
     command_interfaces:
-      - position
-      - velocity
       - effort    # 注意：在 ign_ros2_control 中，力矩通常写作 effort 而不是 torque
     state_interfaces:
       - position
       - velocity
       - effort
     
-    gains:
-      lf_joint1: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
-      lf_joint2: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
-      lf_joint3: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
-      rf_joint1: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
-      rf_joint2: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
-      rf_joint3: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
-      lb_joint1: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
-      lb_joint2: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
-      lb_joint3: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
-      rb_joint1: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
-      rb_joint2: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
-      rb_joint3: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
+    # gains:
+    #   lf_joint1: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
+    #   lf_joint2: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
+    #   lf_joint3: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
+    #   rf_joint1: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
+    #   rf_joint2: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
+    #   rf_joint3: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
+    #   lb_joint1: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
+    #   lb_joint2: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
+    #   lb_joint3: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
+    #   rb_joint1: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
+    #   rb_joint2: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
+    #   rb_joint3: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}

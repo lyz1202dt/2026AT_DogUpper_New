@@ -572,19 +572,19 @@ void RobotCalcNode::legs_update() {
     for (int i = 0; i < 3; i++) {
         joints_target.legs[0].joints[i].rad    = (float)std::get<0>(lf_leg_joints_target)[i];
         joints_target.legs[0].joints[i].omega  = (float)std::get<1>(lf_leg_joints_target)[i];
-        joints_target.legs[0].joints[i].torque = 0.0;
+        joints_target.legs[0].joints[i].torque = (float)std::get<2>(lf_leg_joints_target)[i];
 
         joints_target.legs[1].joints[i].rad    = (float)std::get<0>(rf_leg_joints_target)[i];
         joints_target.legs[1].joints[i].omega  = (float)std::get<1>(rf_leg_joints_target)[i];
-        joints_target.legs[1].joints[i].torque = 0.0;
+        joints_target.legs[1].joints[i].torque = (float)std::get<2>(rf_leg_joints_target)[i];
 
         joints_target.legs[2].joints[i].rad    = (float)std::get<0>(lb_leg_joints_target)[i];
         joints_target.legs[2].joints[i].omega  = (float)std::get<1>(lb_leg_joints_target)[i];
-        joints_target.legs[2].joints[i].torque = 0.0;
+        joints_target.legs[2].joints[i].torque = (float)std::get<2>(lb_leg_joints_target)[i];
 
         joints_target.legs[3].joints[i].rad    = (float)std::get<0>(rb_leg_joints_target)[i];
         joints_target.legs[3].joints[i].omega  = (float)std::get<1>(rb_leg_joints_target)[i];
-        joints_target.legs[3].joints[i].torque = 0.0;
+        joints_target.legs[3].joints[i].torque = (float)std::get<2>(rb_leg_joints_target)[i];
     }
     legs_target_pub->publish(joints_target);
 

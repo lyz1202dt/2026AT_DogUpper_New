@@ -66,8 +66,8 @@ Stephen Brawner (brawner@gmail.com)
         </hardware>
 
         <joint name="lf_joint1">
-            <command_interface name="position" />
-            <command_interface name="velocity" />
+            <!-- <command_interface name="position" />
+            <command_interface name="velocity" /> -->
             <command_interface name="effort" />
             <state_interface name="position" />
             <state_interface name="velocity" />
@@ -75,8 +75,8 @@ Stephen Brawner (brawner@gmail.com)
         </joint>
 
         <joint name="lf_joint2">
-            <command_interface name="position" />
-            <command_interface name="velocity" />
+            <!-- <command_interface name="position" />
+            <command_interface name="velocity" /> -->
             <command_interface name="effort" />
             <state_interface name="position" />
             <state_interface name="velocity" />
@@ -84,8 +84,8 @@ Stephen Brawner (brawner@gmail.com)
         </joint>
 
         <joint name="lf_joint3">
-            <command_interface name="position" />
-            <command_interface name="velocity" />
+            <!-- <command_interface name="position" />
+            <command_interface name="velocity" /> -->
             <command_interface name="effort" />
             <state_interface name="position" />
             <state_interface name="velocity" />
@@ -93,8 +93,8 @@ Stephen Brawner (brawner@gmail.com)
         </joint>
 
         <joint name="rf_joint1">
-            <command_interface name="position" />
-            <command_interface name="velocity" />
+            <!-- <command_interface name="position" />
+            <command_interface name="velocity" /> -->
             <command_interface name="effort" />
             <state_interface name="position" />
             <state_interface name="velocity" />
@@ -102,8 +102,8 @@ Stephen Brawner (brawner@gmail.com)
         </joint>
 
         <joint name="rf_joint2">
-            <command_interface name="position" />
-            <command_interface name="velocity" />
+            <!-- <command_interface name="position" />
+            <command_interface name="velocity" /> -->
             <command_interface name="effort" />
             <state_interface name="position" />
             <state_interface name="velocity" />
@@ -111,8 +111,8 @@ Stephen Brawner (brawner@gmail.com)
         </joint>
 
         <joint name="rf_joint3">
-            <command_interface name="position" />
-            <command_interface name="velocity" />
+            <!-- <command_interface name="position" />
+            <command_interface name="velocity" /> -->
             <command_interface name="effort" />
             <state_interface name="position" />
             <state_interface name="velocity" />
@@ -120,8 +120,8 @@ Stephen Brawner (brawner@gmail.com)
         </joint>
 
         <joint name="lb_joint1">
-            <command_interface name="position" />
-            <command_interface name="velocity" />
+            <!-- <command_interface name="position" />
+            <command_interface name="velocity" /> -->
             <command_interface name="effort" />
             <state_interface name="position" />
             <state_interface name="velocity" />
@@ -129,8 +129,8 @@ Stephen Brawner (brawner@gmail.com)
         </joint>
 
         <joint name="lb_joint2">
-            <command_interface name="position" />
-            <command_interface name="velocity" />
+            <!-- <command_interface name="position" />
+            <command_interface name="velocity" /> -->
             <command_interface name="effort" />
             <state_interface name="position" />
             <state_interface name="velocity" />
@@ -138,8 +138,8 @@ Stephen Brawner (brawner@gmail.com)
         </joint>
 
         <joint name="lb_joint3">
-            <command_interface name="position" />
-            <command_interface name="velocity" />
+            <!-- <command_interface name="position" />
+            <command_interface name="velocity" /> -->
             <command_interface name="effort" />
             <state_interface name="position" />
             <state_interface name="velocity" />
@@ -147,8 +147,8 @@ Stephen Brawner (brawner@gmail.com)
         </joint>
 
         <joint name="rb_joint1">
-            <command_interface name="position" />
-            <command_interface name="velocity" />
+            <!-- <command_interface name="position" />
+            <command_interface name="velocity" /> -->
             <command_interface name="effort" />
             <state_interface name="position" />
             <state_interface name="velocity" />
@@ -156,8 +156,8 @@ Stephen Brawner (brawner@gmail.com)
         </joint>
 
         <joint name="rb_joint2">
-            <command_interface name="position" />
-            <command_interface name="velocity" />
+            <!-- <command_interface name="position" />
+            <command_interface name="velocity" /> -->
             <command_interface name="effort" />
             <state_interface name="position" />
             <state_interface name="velocity" />
@@ -165,8 +165,8 @@ Stephen Brawner (brawner@gmail.com)
         </joint>
 
         <joint name="rb_joint3">
-            <command_interface name="position" />
-            <command_interface name="velocity" />
+            <!-- <command_interface name="position" />
+            <command_interface name="velocity" /> -->
             <command_interface name="effort" />
             <state_interface name="position" />
             <state_interface name="velocity" />
@@ -423,8 +423,8 @@ Stephen Brawner (brawner@gmail.com)
                 xyz="0 0 0"
                 rpy="0 0 0" />
             <geometry>
-                <mesh
-                    filename="package://dog/meshes/lf_link4.STL" />
+                <!-- <mesh filename="package://dog/meshes/lf_link4.STL" /> -->
+                <sphere radius="0.06"/>
             </geometry>
         </collision>
     </link>
@@ -650,8 +650,8 @@ Stephen Brawner (brawner@gmail.com)
                 xyz="0 0 0"
                 rpy="0 0 0" />
             <geometry>
-                <mesh
-                    filename="package://dog/meshes/rf_link4.STL" />
+                <!-- <mesh filename="package://dog/meshes/rf_link4.STL" /> -->
+                <sphere radius="0.06"/>
             </geometry>
         </collision>
     </link>
@@ -877,8 +877,8 @@ Stephen Brawner (brawner@gmail.com)
                 xyz="0 0 0"
                 rpy="0 0 0" />
             <geometry>
-                <mesh
-                    filename="package://dog/meshes/lb_link4.STL" />
+                <!-- <mesh filename="package://dog/meshes/lb_link4.STL" /> -->
+                <sphere radius="0.06"/>
             </geometry>
         </collision>
     </link>
@@ -1104,8 +1104,8 @@ Stephen Brawner (brawner@gmail.com)
                 xyz="0 0 0"
                 rpy="0 0 0" />
             <geometry>
-                <mesh
-                    filename="package://dog/meshes/rb_link4.STL" />
+                <!-- <mesh filename="package://dog/meshes/rb_link4.STL" /> -->
+                <sphere radius="0.06"/>
             </geometry>
         </collision>
     </link>

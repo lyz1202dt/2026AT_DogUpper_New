@@ -1,7 +1,6 @@
 #include "dog_controller/dog_controller.hpp"
-#include "robot_interfaces/msg/robot.hpp"
+#include <robot_interfaces/msg/robot.hpp>
 #include <controller_interface/controller_interface.hpp>
-// pluginlib export macro
 #include <pluginlib/class_list_macros.hpp>
 
 namespace dog_controller {
@@ -13,11 +12,53 @@ controller_interface::CallbackReturn DogController::on_init() {
         "legs_target", 10, [this](const robot_interfaces::msg::Robot& msg) { joints_target = msg; });
     joints_name_ = {"lf_joint1", "lf_joint2", "lf_joint3", "rf_joint1", "rf_joint2", "rf_joint3",
                     "lb_joint1", "lb_joint2", "lb_joint3", "rb_joint1", "rb_joint2", "rb_joint3"};
+    joint_kp[0]=0.0;
+    joint_kp[1]=0.0;
+    joint_kp[2]=0.0;
+    joint_kd[0]=0.0;
+    joint_kd[1]=0.0;
+    joint_kd[2]=0.0;
+
+    auto node=get_node();
+    node->declare_parameter("joint1_kp",5.0);
+    node->declare_parameter("joint1_kd",0.4);
+    node->declare_parameter("joint2_kp",5.0);
+    node->declare_parameter("joint2_kd",0.3);
+    node->declare_parameter("joint3_kp",2.0);
+    node->declare_parameter("joint3_kd",0.1);
+
+    param_cb_=node->add_on_set_parameters_callback([this](const std::vector<rclcpp::Parameter>& params) {
+        rcl_interfaces::msg::SetParametersResult result;
+        result.successful=true;
+        for (const auto& param : params) {
+            if(param.get_name()=="joint1_kp")
+                joint_kp[0]=param.as_double();
+            else if(param.get_name()=="joint1_kd")
+                joint_kd[0]=param.as_double();
+            else if(param.get_name()=="joint2_kp")
+                joint_kp[1]=param.as_double();
+            else if(param.get_name()=="joint2_kd")
+                joint_kd[1]=param.as_double();
+            else if(param.get_name()=="joint3_kp")
+                joint_kp[2]=param.as_double();
+            else if(param.get_name()=="joint3_kd")
+                joint_kd[2]=param.as_double();
+        }
+        return result;
+    });
+
     return controller_interface::CallbackReturn::SUCCESS;
 }
 
 controller_interface::CallbackReturn DogController::on_configure(const rclcpp_lifecycle::State& previous_state) {
     (void)previous_state;
+    auto node=get_node();
+    joint_kp[0]=node->get_parameter("joint1_kp").as_double();
+    joint_kd[0]=node->get_parameter("joint1_kp").as_double();
+    joint_kp[1]=node->get_parameter("joint2_kp").as_double();
+    joint_kd[1]=node->get_parameter("joint2_kp").as_double();
+    joint_kp[2]=node->get_parameter("joint3_kp").as_double();
+    joint_kd[2]=node->get_parameter("joint3_kp").as_double();
     return controller_interface::ControllerInterface::CallbackReturn::SUCCESS;
 }
 controller_interface::CallbackReturn DogController::on_activate(const rclcpp_lifecycle::State& previous_state) {
@@ -43,9 +84,12 @@ controller_interface::return_type DogController::update(const rclcpp::Time& time
 
     for (size_t i = 0; i < joints_num; i++) // 将计算结果写入硬件层
     {
-        command_interfaces_[i * 3 + 0].set_value((double)joints_target.legs[i / 3].joints[i % 3].rad);
-        command_interfaces_[i * 3 + 1].set_value((double)joints_target.legs[i / 3].joints[i % 3].omega);
-        command_interfaces_[i * 3 + 2].set_value((double)joints_target.legs[i / 3].joints[i % 3].torque);
+        // command_interfaces_[i * 3 + 0].set_value((double)joints_target.legs[i / 3].joints[i % 3].rad);
+        // command_interfaces_[i * 3 + 1].set_value((double)joints_target.legs[i / 3].joints[i % 3].omega);
+        // command_interfaces_[i * 3 + 2].set_value((double)joints_target.legs[i / 3].joints[i % 3].torque);
+        double effort=joint_kp[i%3]*(joints_target.legs[i / 3].joints[i % 3].rad-state_msg.legs[i / 3].joints[i % 3].rad)+
+                    joint_kd[i%3]*(joints_target.legs[i / 3].joints[i % 3].omega-state_msg.legs[i / 3].joints[i % 3].omega);
+        command_interfaces_[i].set_value(effort+(double)joints_target.legs[i / 3].joints[i % 3].torque);
     }
     return controller_interface::return_type::OK;
 }
@@ -55,8 +99,8 @@ controller_interface::InterfaceConfiguration DogController::command_interface_co
     cfg.type = controller_interface::interface_configuration_type::INDIVIDUAL;
 
     for (const auto& name : joints_name_) {
-        cfg.names.push_back(name + "/position");
-        cfg.names.push_back(name + "/velocity");
+        //cfg.names.push_back(name + "/position");
+        //cfg.names.push_back(name + "/velocity");
         cfg.names.push_back(name + "/effort");
     }
     return cfg;

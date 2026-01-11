@@ -22,7 +22,10 @@ private:
     rclcpp::Publisher<robot_interfaces::msg::Robot>::SharedPtr state_publisher;
     rclcpp::Subscription<robot_interfaces::msg::Robot>::SharedPtr target_subscriber;
     std::vector<std::string> joints_name_;
+    rclcpp_lifecycle::LifecycleNode::OnSetParametersCallbackHandle::SharedPtr param_cb_;
 
     robot_interfaces::msg::Robot joints_target;
+
+    double joint_kp[3],joint_kd[3];
 };
 } // namespace dog_controller

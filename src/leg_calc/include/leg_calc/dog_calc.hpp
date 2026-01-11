@@ -127,7 +127,7 @@ private:
     sensor_msgs::msg::JointState joint_display_msg;
 
     // 机器人状态
-    DogState robot_state{DOG_STOP};
+    DogState robot_state{DOG_IDEL};
     DogReqState robot_req_state{DOG_REQ_IDEL}; //请求的机器人状态
     double robot_lf_grivate{0.0};
     double robot_rf_grivate{0.0};

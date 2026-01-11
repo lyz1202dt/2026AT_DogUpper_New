@@ -1,6 +1,8 @@
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.actions import IncludeLaunchDescription
 import os
 
 def generate_launch_description():
@@ -38,4 +40,9 @@ def generate_launch_description():
         executable="rviz2",
         arguments=["-d", rviz2_config_path]  # 可选，指定rviz配置文件
     )
-    return LaunchDescription([robot_state_pub, leg_calc, rviz2])
+
+    gz_sim_launch = IncludeLaunchDescription(
+    PythonLaunchDescriptionSource([os.path.join(
+        get_package_share_directory('launch_pack'), 'launch', 'dog_gz_sim.launch.py')]))
+    
+    return LaunchDescription([robot_state_pub, leg_calc, rviz2,gz_sim_launch])
