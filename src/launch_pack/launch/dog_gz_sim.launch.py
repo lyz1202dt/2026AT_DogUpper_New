@@ -10,15 +10,18 @@ import os
 def generate_launch_description():
 
     dog_path = get_package_share_directory('dog')
+    launch_path=get_package_share_directory('launch_pack')
 
 
     urdf_path = os.path.join(
         dog_path,
         "urdf", "dog.urdf"
     )
+    with open(urdf_path, 'r') as inf:
+        robot_desc = inf.read()
 
     controller_yaml=os.path.join(
-        get_package_share_directory("launch_pack"),
+        launch_path,
         "config", "ros2_controller.yaml"
     )
 
@@ -33,9 +36,7 @@ def generate_launch_description():
         value=[model_path]
     )
 
-    # 读取URDF内容
-    with open(urdf_path, 'r') as inf:
-        robot_desc = inf.read()
+    
 
     robot_state_pub = Node(
         package="robot_state_publisher",
@@ -67,12 +68,21 @@ def generate_launch_description():
         output="screen",
     )
 
+    bridge_node = Node(
+        package='ros_gz_bridge',
+        executable='parameter_bridge',
+        parameters=[{
+            'config_file': os.path.join(launch_path,"config", "bridge_config.yaml")}
+            ],
+        output='screen'
+    )
+
     return LaunchDescription([
         controller_config_path,
         set_gz_resource_path,
         robot_state_pub,
         gz_sim_start,
         gz_sim_create,
-        spawner_activate_controller
-        #gz_sim_create,
+        spawner_activate_controller,
+        bridge_node
     ])

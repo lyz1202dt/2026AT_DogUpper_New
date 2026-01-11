@@ -1,0 +1,6 @@
+#参考https://github.com/gazebosim/ros_gz/tree/ros2/ros_gz_bridge
+- ros_topic_name: "/imu"
+  gz_topic_name: "/imu"
+  ros_type_name: "sensor_msgs/msg/Imu"      # 必须是 ros_type_name
+  gz_type_name: "gz.msgs.IMU"       # 必须是 gz_type_name
+  direction: GZ_TO_ROS

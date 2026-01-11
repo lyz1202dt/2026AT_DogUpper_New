@@ -16,54 +16,78 @@ Stephen Brawner (brawner@gmail.com)
     </gazebo>
 
     <gazebo reference="body_link">
-            <static>false</static>
-            <mu1>0.2</mu1>
-            <mu2>0.2</mu2>
-            <self_collide>true</self_collide>
-        </gazebo>
+        <static>false</static>
+        <mu1>0.2</mu1>
+        <mu2>0.2</mu2>
+        <self_collide>true</self_collide>
+    </gazebo>
 
-        <gazebo reference="lf_link1">
-            <self_collide>true</self_collide>
-        </gazebo>
-        <gazebo reference="lf_link2">
-            <self_collide>true</self_collide>
-        </gazebo>
-        <gazebo reference="lf_link3">
-            <self_collide>true</self_collide>
-        </gazebo>
-        <gazebo reference="rf_link1">
-            <self_collide>true</self_collide>
-        </gazebo>
-        <gazebo reference="rf_link2">
-            <self_collide>true</self_collide>
-        </gazebo>
-        <gazebo reference="rf_link3">
-            <self_collide>true</self_collide>
-        </gazebo>
-        <gazebo reference="lb_link1">
-            <self_collide>true</self_collide>
-        </gazebo>
-        <gazebo reference="lb_link2">
-            <self_collide>true</self_collide>
-        </gazebo>
-        <gazebo reference="lb_link3">
-            <self_collide>true</self_collide>
-        </gazebo>
-        <gazebo reference="rb_link1">
-            <self_collide>true</self_collide>
-        </gazebo>
-        <gazebo reference="rb_link2">
-            <self_collide>true</self_collide>
-        </gazebo>
-        <gazebo reference="rb_link3">
-            <self_collide>true</self_collide>
-        </gazebo>
+    <gazebo reference="lf_link1">
+        <self_collide>true</self_collide>
+    </gazebo>
+    <gazebo reference="lf_link2">
+        <self_collide>true</self_collide>
+    </gazebo>
+    <gazebo reference="lf_link3">
+        <self_collide>true</self_collide>
+    </gazebo>
+    <gazebo reference="rf_link1">
+        <self_collide>true</self_collide>
+    </gazebo>
+    <gazebo reference="rf_link2">
+        <self_collide>true</self_collide>
+    </gazebo>
+    <gazebo reference="rf_link3">
+        <self_collide>true</self_collide>
+    </gazebo>
+    <gazebo reference="lb_link1">
+        <self_collide>true</self_collide>
+    </gazebo>
+    <gazebo reference="lb_link2">
+        <self_collide>true</self_collide>
+    </gazebo>
+    <gazebo reference="lb_link3">
+        <self_collide>true</self_collide>
+    </gazebo>
+    <gazebo reference="rb_link1">
+        <self_collide>true</self_collide>
+    </gazebo>
+    <gazebo reference="rb_link2">
+        <self_collide>true</self_collide>
+    </gazebo>
+    <gazebo reference="rb_link3">
+        <self_collide>true</self_collide>
+    </gazebo>
+
+    <gazebo reference="body_link">
+        <sensor name="imu_sensor" type="imu">
+            <always_on>1</always_on>
+            <update_rate>100</update_rate>
+            <visualize>true</visualize>
+            <topic>imu</topic>
+            <plugin filename="ignition-gazebo-imu-system" name="ignition::gazebo::systems::Imu">
+            </plugin>
+        </sensor>
+    </gazebo>
 
     <ros2_control name="dog_system" type="system">
 
         <hardware>
             <plugin>ign_ros2_control/IgnitionSystem</plugin>
         </hardware>
+
+        <sensor name="imu_sensor">
+            <state_interface name="orientation.x" />
+            <state_interface name="orientation.y" />
+            <state_interface name="orientation.z" />
+            <state_interface name="orientation.w" />
+            <state_interface name="angular_velocity.x" />
+            <state_interface name="angular_velocity.y" />
+            <state_interface name="angular_velocity.z" />
+            <state_interface name="linear_acceleration.x" />
+            <state_interface name="linear_acceleration.y" />
+            <state_interface name="linear_acceleration.z" />
+        </sensor>
 
         <joint name="lf_joint1">
             <!-- <command_interface name="position" />
@@ -174,6 +198,7 @@ Stephen Brawner (brawner@gmail.com)
         </joint>
 
     </ros2_control>
+
     <link
         name="body_link">
         <inertial>
@@ -424,7 +449,7 @@ Stephen Brawner (brawner@gmail.com)
                 rpy="0 0 0" />
             <geometry>
                 <!-- <mesh filename="package://dog/meshes/lf_link4.STL" /> -->
-                <sphere radius="0.06"/>
+                <sphere radius="0.06" />
             </geometry>
         </collision>
     </link>
@@ -651,7 +676,7 @@ Stephen Brawner (brawner@gmail.com)
                 rpy="0 0 0" />
             <geometry>
                 <!-- <mesh filename="package://dog/meshes/rf_link4.STL" /> -->
-                <sphere radius="0.06"/>
+                <sphere radius="0.06" />
             </geometry>
         </collision>
     </link>
@@ -878,7 +903,7 @@ Stephen Brawner (brawner@gmail.com)
                 rpy="0 0 0" />
             <geometry>
                 <!-- <mesh filename="package://dog/meshes/lb_link4.STL" /> -->
-                <sphere radius="0.06"/>
+                <sphere radius="0.06" />
             </geometry>
         </collision>
     </link>
@@ -1105,7 +1130,7 @@ Stephen Brawner (brawner@gmail.com)
                 rpy="0 0 0" />
             <geometry>
                 <!-- <mesh filename="package://dog/meshes/rb_link4.STL" /> -->
-                <sphere radius="0.06"/>
+                <sphere radius="0.06" />
             </geometry>
         </collision>
     </link>
