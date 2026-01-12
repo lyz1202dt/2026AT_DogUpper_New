@@ -6,9 +6,6 @@ controller_manager:
     dog_controller:
       type: dog_controller/DogController
 
-    dog_state_broadcaster:
-      type: joint_state_broadcaster/JointStateBroadcaster
-
 # 具体控制器的参数配置：必须与 controller_manager 同级
 dog_controller:
   ros__parameters:
