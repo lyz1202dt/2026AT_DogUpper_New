@@ -6,9 +6,6 @@ controller_manager:
     dog_controller:
       type: dog_controller/DogController
 
-    dog_state_broadcaster:
-      type: joint_state_broadcaster/JointStateBroadcaster
-
 # 具体控制器的参数配置：必须与 controller_manager 同级
 dog_controller:
   ros__parameters:
@@ -31,17 +28,3 @@ dog_controller:
       - position
       - velocity
       - effort
-    
-    # gains:
-    #   lf_joint1: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
-    #   lf_joint2: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
-    #   lf_joint3: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
-    #   rf_joint1: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
-    #   rf_joint2: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
-    #   rf_joint3: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
-    #   lb_joint1: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
-    #   lb_joint2: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
-    #   lb_joint3: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
-    #   rb_joint1: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
-    #   rb_joint2: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}
-    #   rb_joint3: {p: 5.0, i: 0.0, d: 2.0, i_clamp: 0.0}

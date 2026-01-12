@@ -6,6 +6,9 @@ from launch.actions import IncludeLaunchDescription
 import os
 
 def generate_launch_description():
+
+    simulate_env_launch_scripe="dog_mujoco_sim.py"
+
     urdf_path = os.path.join(
         get_package_share_directory("dog"),
         "urdf", "dog.urdf"
@@ -25,11 +28,6 @@ def generate_launch_description():
         executable="leg_calc"
     )
 
-    # leg_driver=Node(
-    #     package="leg_driver",
-    #     executable="leg_driver"
-    # )
-
     rviz2_config_path=os.path.join(
         get_package_share_directory("launch_pack"),
         "rviz", "display_config.rviz"
@@ -40,9 +38,9 @@ def generate_launch_description():
         executable="rviz2",
         arguments=["-d", rviz2_config_path]  # 可选，指定rviz配置文件
     )
-
-    gz_sim_launch = IncludeLaunchDescription(
-    PythonLaunchDescriptionSource([os.path.join(
-        get_package_share_directory('launch_pack'), 'launch', 'dog_gz_sim.launch.py')]))
     
-    return LaunchDescription([robot_state_pub, leg_calc, rviz2,gz_sim_launch])
+    sim_launch = IncludeLaunchDescription(
+    PythonLaunchDescriptionSource([os.path.join(
+        get_package_share_directory('launch_pack'), 'launch', simulate_env_launch_scripe)]))
+    
+    return LaunchDescription([robot_state_pub,  leg_calc , rviz2 ,sim_launch])

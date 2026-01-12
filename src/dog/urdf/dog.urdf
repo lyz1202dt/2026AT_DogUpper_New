@@ -7,73 +7,16 @@ Stephen Brawner (brawner@gmail.com)
 <robot
     name="dog">
 
-    <gazebo>
-        <plugin filename="ign_ros2_control-system"
-            name="ign_ros2_control::IgnitionROS2ControlPlugin">
-            <parameters>/home/lyz/Project/26_AT_new_dog/src/launch_pack/config/ros2_controller.yaml</parameters>
-
-        </plugin>
-    </gazebo>
-
-    <gazebo reference="body_link">
-        <static>false</static>
-        <mu1>0.2</mu1>
-        <mu2>0.2</mu2>
-        <self_collide>true</self_collide>
-    </gazebo>
-
-    <gazebo reference="lf_link1">
-        <self_collide>true</self_collide>
-    </gazebo>
-    <gazebo reference="lf_link2">
-        <self_collide>true</self_collide>
-    </gazebo>
-    <gazebo reference="lf_link3">
-        <self_collide>true</self_collide>
-    </gazebo>
-    <gazebo reference="rf_link1">
-        <self_collide>true</self_collide>
-    </gazebo>
-    <gazebo reference="rf_link2">
-        <self_collide>true</self_collide>
-    </gazebo>
-    <gazebo reference="rf_link3">
-        <self_collide>true</self_collide>
-    </gazebo>
-    <gazebo reference="lb_link1">
-        <self_collide>true</self_collide>
-    </gazebo>
-    <gazebo reference="lb_link2">
-        <self_collide>true</self_collide>
-    </gazebo>
-    <gazebo reference="lb_link3">
-        <self_collide>true</self_collide>
-    </gazebo>
-    <gazebo reference="rb_link1">
-        <self_collide>true</self_collide>
-    </gazebo>
-    <gazebo reference="rb_link2">
-        <self_collide>true</self_collide>
-    </gazebo>
-    <gazebo reference="rb_link3">
-        <self_collide>true</self_collide>
-    </gazebo>
-
-    <gazebo reference="body_link">
-        <sensor name="imu_sensor" type="imu">
-            <always_on>1</always_on>
-            <update_rate>100</update_rate>
-            <visualize>true</visualize>
-            <topic>imu</topic>
-            <plugin filename="ignition-gazebo-imu-system" name="ignition::gazebo::systems::Imu">
-            </plugin>
-        </sensor>
-    </gazebo>
+    <mujoco>
+        <compiler
+            balanceinertia="true"
+            discardvisual="false" />
+    </mujoco>
 
     <ros2_control name="dog_system" type="system">
 
         <hardware>
-            <plugin>ign_ros2_control/IgnitionSystem</plugin>
+            <plugin>mujoco_ros2_control/MujocoSystem</plugin>
         </hardware>
 
         <sensor name="imu_sensor">
