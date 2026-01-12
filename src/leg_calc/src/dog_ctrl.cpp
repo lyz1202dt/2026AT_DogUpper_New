@@ -11,7 +11,6 @@ using namespace std::chrono_literals;
 
 RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     node_    = node;
-    vmc      = new VMC(200, 60, 5.0, 0.5, 0.2, 0.1, 20ms);                                      // 创建VMC计算对象
     lf_z_vmc = std::make_shared<VMC>(500, 120, 4.0, 0.5, 0.2, 0.1, 10ms);
     rf_z_vmc = std::make_shared<VMC>(500, 120, 4.0, 0.5, 0.2, 0.1, 10ms);
     lb_z_vmc = std::make_shared<VMC>(500, 120, 4.0, 0.5, 0.2, 0.1, 10ms);
@@ -208,7 +207,7 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     RCLCPP_INFO(node_->get_logger(), "初始化完成");
 }
 
-RobotCalcNode::~RobotCalcNode() { delete vmc; }
+RobotCalcNode::~RobotCalcNode() {}
 
 void RobotCalcNode::show_callback() {
     // visualization_msgs::msg::Marker dot_marker;
@@ -592,24 +591,24 @@ void RobotCalcNode::legs_update() {
     if (rviz2_update_cnt == 5) {    //发布话题在RVIZ2中查看
         rviz2_update_cnt = 0;
 
-        // joint_display_msg.position[0] = lf_joint_pos[0];
-        // joint_display_msg.position[1] = lf_joint_pos[1];
-        // joint_display_msg.position[2] = lf_joint_pos[2];
+        joint_display_msg.position[0] = lf_joint_pos[0];
+        joint_display_msg.position[1] = lf_joint_pos[1];
+        joint_display_msg.position[2] = lf_joint_pos[2];
 
-        // joint_display_msg.position[3] = rf_joint_pos[0];
-        // joint_display_msg.position[4] = rf_joint_pos[1];
-        // joint_display_msg.position[5] = rf_joint_pos[2];
+        joint_display_msg.position[3] = rf_joint_pos[0];
+        joint_display_msg.position[4] = rf_joint_pos[1];
+        joint_display_msg.position[5] = rf_joint_pos[2];
 
-        // joint_display_msg.position[6] = lb_joint_pos[0];
-        // joint_display_msg.position[7] = lb_joint_pos[1];
-        // joint_display_msg.position[8] = lb_joint_pos[2];
+        joint_display_msg.position[6] = lb_joint_pos[0];
+        joint_display_msg.position[7] = lb_joint_pos[1];
+        joint_display_msg.position[8] = lb_joint_pos[2];
 
-        // joint_display_msg.position[9]  = rb_joint_pos[0];
-        // joint_display_msg.position[10] = rb_joint_pos[1];
-        // joint_display_msg.position[11] = rb_joint_pos[2];
+        joint_display_msg.position[9]  = rb_joint_pos[0];
+        joint_display_msg.position[10] = rb_joint_pos[1];
+        joint_display_msg.position[11] = rb_joint_pos[2];
 
-         for(int i=0;i<12;i++)   //在RVIZ2中显示期望
-             joint_display_msg.position[i]=joints_target.legs[i/3].joints[i%3].rad;
+        //  for(int i=0;i<12;i++)   //在RVIZ2中显示期望
+        //      joint_display_msg.position[i]=joints_target.legs[i/3].joints[i%3].rad;
 
         joint_display_msg.header.stamp = node_->get_clock()->now();
         rviz_joint_publisher->publish(joint_display_msg);

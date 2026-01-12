@@ -61,7 +61,6 @@ private:
     rclcpp::Node::SharedPtr node_;
     rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_server_;
 
-    VMC* vmc;
     std::shared_ptr<VMC> lf_z_vmc, lf_x_vmc, lf_y_vmc;
     std::shared_ptr<VMC> rf_z_vmc, rf_x_vmc, rf_y_vmc;
     std::shared_ptr<VMC> lb_z_vmc, lb_x_vmc, lb_y_vmc;
