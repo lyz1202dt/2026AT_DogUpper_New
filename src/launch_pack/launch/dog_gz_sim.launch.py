@@ -5,6 +5,7 @@ from launch.actions import ExecuteProcess
 from launch.actions import IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.actions import SetEnvironmentVariable
+from launch.actions import TimerAction
 import os
 
 def generate_launch_description():
@@ -35,8 +36,6 @@ def generate_launch_description():
         name='IGN_GAZEBO_RESOURCE_PATH', 
         value=[model_path]
     )
-
-    
 
     robot_state_pub = Node(
         package="robot_state_publisher",
@@ -77,7 +76,30 @@ def generate_launch_description():
         output='screen'
     )
 
+    leg_calc = Node(
+        package="leg_calc",
+        executable="leg_calc"
+    )
+
+    rviz2_config_path=os.path.join(
+        get_package_share_directory("launch_pack"),
+        "rviz", "display_config.rviz"
+    )
+
+    rviz2 = Node(
+        package="rviz2",
+        executable="rviz2",
+        arguments=["-d", rviz2_config_path]  # 可选，指定rviz配置文件
+    )
+
+    rviz2_delayed = TimerAction(
+    period=5.0,  # 延迟 3 秒
+    actions=[rviz2])
+
     return LaunchDescription([
+        leg_calc,
+        rviz2_delayed,
+
         controller_config_path,
         set_gz_resource_path,
         robot_state_pub,

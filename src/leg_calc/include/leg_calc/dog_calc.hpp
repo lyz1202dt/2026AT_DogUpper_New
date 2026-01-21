@@ -20,6 +20,7 @@
 #include <rclcpp/subscription.hpp>
 #include <robot_interfaces/msg/robot.hpp>
 #include <robot_interfaces/msg/move_cmd.hpp>
+#include <sensor_msgs/msg/detail/imu__struct.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
 #include <std_msgs/msg/color_rgba.hpp>
 #include <tuple>
@@ -76,6 +77,7 @@ private:
     rclcpp::Publisher<robot_interfaces::msg::Robot>::SharedPtr legs_target_pub;
     rclcpp::Subscription<robot_interfaces::msg::Robot>::SharedPtr legs_state_sub;
     rclcpp::Subscription<robot_interfaces::msg::MoveCmd>::SharedPtr move_cmd_sub;
+    rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub;
     rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr rviz_joint_publisher;
     rclcpp::SyncParametersClient::SharedPtr robot_description_param_;
     std::unique_ptr<tf2_ros::TransformBroadcaster> robot_tf_broadcaster;

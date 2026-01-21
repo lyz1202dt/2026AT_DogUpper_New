@@ -78,6 +78,7 @@ ament_target_dependencies(
 ament_target_dependencies(
   test_move_node
   rclcpp
+  sensor_msgs
   robot_interfaces
 )
 

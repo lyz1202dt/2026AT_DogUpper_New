@@ -4,7 +4,8 @@
 #include <chrono>
 #include <kdl/frames.hpp>
 #include <rclcpp/duration.hpp>
-#include <robot_interfaces/msg/detail/robot__struct.hpp>
+#include <robot_interfaces/msg/robot.hpp>
+#include <sensor_msgs/msg/imu.hpp>
 #include <tuple>
 
 using namespace std::chrono_literals;
@@ -114,6 +115,14 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
 
     legs_target_pub = node_->create_publisher<robot_interfaces::msg::Robot>("legs_target", 10); // 创建期望位置发布者
 
+    imu_sub=node_->create_subscription<sensor_msgs::msg::Imu>("imu",rclcpp::SensorDataQoS(), [this](const sensor_msgs::msg::Imu &msg){
+        //.//RCLCPP_INFO(node_->get_logger(),"posture:%lf,%lf,%lf,%lf",msg.orientation.w,msg.orientation.x,msg.orientation.y,msg.orientation.z);
+        robot_rotation.setW(msg.orientation.w);
+        robot_rotation.setX(msg.orientation.x);
+        robot_rotation.setY(msg.orientation.y);
+        robot_rotation.setZ(msg.orientation.z);
+    });
+
     legs_state_sub =
         node_->create_subscription<robot_interfaces::msg::Robot>("legs_status", 10, [this](const robot_interfaces::msg::Robot& msg) {
             for (int i = 0; i < 3; i++) {
@@ -132,10 +141,10 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
                 lb_joint_torque[i] = (double)msg.legs[2].joints[i].torque;
                 rb_joint_torque[i] = (double)msg.legs[3].joints[i].torque;
             }
-            robot_rotation.setRPY(0.0, 0.0, 0.0);
-            robot_velocity.angular.x=0.0;
-            robot_velocity.angular.y=0.0;
-            robot_velocity.angular.z=0.0;
+            // robot_rotation.setRPY(0.0, 0.0, 0.0);
+            // robot_velocity.angular.x=0.0;
+            // robot_velocity.angular.y=0.0;
+            // robot_velocity.angular.z=0.0;
             //机器人的线速度需要在别的地方计算
         });
 
