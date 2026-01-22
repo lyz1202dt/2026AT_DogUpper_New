@@ -468,7 +468,7 @@ void RobotCalcNode::legs_update() {
                 step1_flight_updated  = false;
                 slave_phrase_stop_time =
                     now                                            // 从相位支撑相结束时间等于主相位飞行相结束时间+T*(2*α-1)/2
-                    + rclcpp::Duration(std::chrono::duration<double>(std::abs(2.0 * step_support_rate - 1.0) * step_time));
+                    + rclcpp::Duration(std::chrono::duration<double>(std::abs(2.0 * step_support_rate - 1.0) * step_time*0.5));
                 lf_leg_step.update_support_trajectory(lf_leg_calc->foot_pos(lf_joint_pos), lf_exp_vel, step_support_rate * step_time);
                 // 主相对角腿也需要同步进入支撑相（右后）
                 rb_leg_step.update_support_trajectory(rb_leg_calc->foot_pos(rb_joint_pos), rb_exp_vel, step_support_rate * step_time);
@@ -481,11 +481,11 @@ void RobotCalcNode::legs_update() {
                 step1_support_updated = false;                                       // 设置足端轨迹更新状态
                 step1_flight_updated  = true;
                 lf_leg_step.update_flight_trajectory(
-                    lf_leg_calc->foot_pos(lf_joint_pos),Vector3D(lf_exp_vel[0],lf_exp_vel[1],0.0), lf_exp_vel,
+                    lf_leg_calc->foot_pos(lf_joint_pos),-Vector3D(lf_exp_vel[0],lf_exp_vel[1],0.0), lf_exp_vel,
                     step_time * (1.0 - step_support_rate), step_height);
                 // 主相对角腿也需要规划飞行轨迹（右后）
                 rb_leg_step.update_flight_trajectory(
-                    rb_leg_calc->foot_pos(rb_joint_pos), Vector3D(rb_exp_vel[0],rb_exp_vel[1],0.0), rb_exp_vel,
+                    rb_leg_calc->foot_pos(rb_joint_pos), -Vector3D(rb_exp_vel[0],rb_exp_vel[1],0.0), rb_exp_vel,
                     step_time * (1.0 - step_support_rate), step_height);
                 main_phrase_start_time = now;
                 RCLCPP_INFO(node_->get_logger(), "主相位摆动相规划");
@@ -518,10 +518,10 @@ void RobotCalcNode::legs_update() {
                 step2_flight_updated  = true;
                 // 从相两条腿同时进入飞行相（右前 & 左后）
                 rf_leg_step.update_flight_trajectory(
-                    rf_leg_calc->foot_pos(rf_joint_pos), Vector3D(rf_exp_vel[0],rf_exp_vel[1],0.0), rf_exp_vel,
+                    rf_leg_calc->foot_pos(rf_joint_pos), -Vector3D(rf_exp_vel[0],rf_exp_vel[1],0.0), rf_exp_vel,
                     (1.0 - step_support_rate) * step_time, step_height);
                 lb_leg_step.update_flight_trajectory(
-                    lb_leg_calc->foot_pos(lb_joint_pos), Vector3D(lb_exp_vel[0],lb_exp_vel[1],0.0), lb_exp_vel,
+                    lb_leg_calc->foot_pos(lb_joint_pos), -Vector3D(lb_exp_vel[0],lb_exp_vel[1],0.0), lb_exp_vel,
                     (1.0 - step_support_rate) * step_time, step_height);
                 slave_phrase_start_time = now;
                 RCLCPP_INFO(node_->get_logger(), "从相位摆动相规划");

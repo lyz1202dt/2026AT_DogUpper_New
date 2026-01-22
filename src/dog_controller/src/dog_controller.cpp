@@ -2,9 +2,10 @@
 #include <robot_interfaces/msg/robot.hpp>
 #include <controller_interface/controller_interface.hpp>
 #include <pluginlib/class_list_macros.hpp>
+#include <iomanip>
 
 namespace dog_controller {
-DogController::DogController() {}
+DogController::DogController() : csv_initialized_(false) {}
 
 controller_interface::CallbackReturn DogController::on_init() {
     state_publisher   = get_node()->create_publisher<robot_interfaces::msg::Robot>("legs_status", 10);
@@ -26,6 +27,7 @@ controller_interface::CallbackReturn DogController::on_init() {
     node->declare_parameter("joint2_kd",1.5);
     node->declare_parameter("joint3_kp",50.0);
     node->declare_parameter("joint3_kd",2.0);
+    node->declare_parameter("record_lf_torque",false);
 
     param_cb_=node->add_on_set_parameters_callback([this](const std::vector<rclcpp::Parameter>& params) {
         rcl_interfaces::msg::SetParametersResult result;
@@ -43,6 +45,21 @@ controller_interface::CallbackReturn DogController::on_init() {
                 joint_kp[2]=param.as_double();
             else if(param.get_name()=="joint3_kd")
                 joint_kd[2]=param.as_double();
+            else if(param.get_name()=="record_lf_torque")
+            {
+                csv_initialized_=param.as_bool();
+                if(csv_initialized_)
+                {
+                    start_time_ = std::chrono::steady_clock::now();
+                    csv_file_.open("/home/lyz/Project/26_AT_new_dog/log/lf_joint_torque.csv");
+                    csv_file_ << "time_ms,lf_joint1_torque,lf_joint2_torque,lf_joint3_torque\n";
+                    RCLCPP_INFO(get_node()->get_logger(),"打开CSV文件");
+                }
+                else {
+                    csv_file_.close();
+                }
+            }
+                
         }
         return result;
     });
@@ -81,6 +98,18 @@ controller_interface::return_type DogController::update(const rclcpp::Time& time
         state_msg.legs[i / 3].joints[i % 3].torque = state_interfaces_[i * 3 + 2].get_value();
     }
     state_publisher->publish(state_msg);    // 发布关节状态
+
+    if (csv_file_.is_open()) {  //如果需要记录，那么记录关节数据
+        RCLCPP_INFO(get_node()->get_logger(),"记录数据");
+        auto now = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time_).count();
+        csv_file_ << elapsed << "," 
+                  << std::fixed << std::setprecision(6)
+                  << state_msg.legs[0].joints[0].torque << ","
+                  << state_msg.legs[0].joints[1].torque << ","
+                  << state_msg.legs[0].joints[2].torque << "\n";
+        csv_file_.flush();
+    }
 
     for (size_t i = 0; i < joints_num; i++) // 将计算结果写入硬件层
     {

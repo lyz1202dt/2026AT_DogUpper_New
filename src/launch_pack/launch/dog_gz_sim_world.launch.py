@@ -32,9 +32,14 @@ def generate_launch_description():
     )
     
     model_path = os.path.join(dog_path, "..")
+    gazebo_model_path = "/usr/share/gazebo-11/models:/usr/share/gazebo/models"
     set_gz_resource_path = SetEnvironmentVariable(
-        name='IGN_GAZEBO_RESOURCE_PATH', 
-        value=[model_path]
+        name='GZ_SIM_RESOURCE_PATH', 
+        value=f"{model_path}:{gazebo_model_path}"
+    )
+    set_gazebo_model_path = SetEnvironmentVariable(
+        name='GAZEBO_MODEL_PATH',
+        value=f"{model_path}:{gazebo_model_path}"
     )
 
     robot_state_pub = Node(
@@ -46,13 +51,13 @@ def generate_launch_description():
     # 启动 gz sim
 
     world_pkg_path = get_package_share_directory('dog')
-    world_path = os.path.join(world_pkg_path, 'world', 'sw.world')
+    world_path = os.path.join(world_pkg_path, 'world', 'world.sdf')
 
 
     gz_sim_start = IncludeLaunchDescription(
     PythonLaunchDescriptionSource([os.path.join(
         get_package_share_directory('ros_gz_sim'), 'launch', 'gz_sim.launch.py')]),
-    launch_arguments={'gz_args': f'-r {world_path}'}.items(),)
+    launch_arguments={'gz_args': f'{world_path}'}.items(),)
 
     gz_sim_create=Node(package="ros_gz_sim",executable="create",
     arguments=["-name", "dog",
@@ -107,6 +112,7 @@ def generate_launch_description():
 
         controller_config_path,
         set_gz_resource_path,
+        set_gazebo_model_path,
         robot_state_pub,
         gz_sim_start,
         gz_sim_create,
