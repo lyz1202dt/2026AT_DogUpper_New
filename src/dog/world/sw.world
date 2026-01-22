@@ -1,0 +1,45 @@
+<?xml version="1.0" ?>
+<sdf version="1.7">
+  <world name="sw_world">
+
+    <!-- 光源 -->
+    <include>
+      <uri>model://sun</uri>
+    </include>
+
+    <!-- 地面 -->
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <!-- STEP 场景 -->
+    <model name="my_scene">
+      <static>true</static>
+
+      <link name="scene_link">
+
+        <!-- 碰撞 -->
+        <collision name="collision">
+          <geometry>
+            <mesh>
+              <uri>model://dog/world_mesh/scene.stl</uri>
+              <scale>1 1 1</scale>
+            </mesh>
+          </geometry>
+        </collision>
+
+        <!-- 视觉 -->
+        <visual name="visual">
+          <geometry>
+            <mesh>
+              <uri>model://dog/world_mesh/scene.dae</uri>
+              <scale>1 1 1</scale>
+            </mesh>
+          </geometry>
+        </visual>
+
+      </link>
+    </model>
+
+  </world>
+</sdf>

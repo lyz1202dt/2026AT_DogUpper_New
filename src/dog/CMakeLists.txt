@@ -19,6 +19,14 @@ install(DIRECTORY meshes/
   DESTINATION share/${PROJECT_NAME}/meshes
 )
 
+install(DIRECTORY world/
+  DESTINATION share/${PROJECT_NAME}/world
+)
+
+install(DIRECTORY world_mesh/
+  DESTINATION share/${PROJECT_NAME}/world_mesh
+)
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
