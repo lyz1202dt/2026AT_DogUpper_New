@@ -12,7 +12,6 @@ using namespace std::chrono_literals;
 
 RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     node_    = node;
-    vmc      = new VMC(200, 60, 5.0, 0.5, 0.2, 0.1, 20ms);                                      // 创建VMC计算对象
     lf_z_vmc = std::make_shared<VMC>(500, 120, 4.0, 0.5, 0.2, 0.1, 10ms);
     rf_z_vmc = std::make_shared<VMC>(500, 120, 4.0, 0.5, 0.2, 0.1, 10ms);
     lb_z_vmc = std::make_shared<VMC>(500, 120, 4.0, 0.5, 0.2, 0.1, 10ms);
@@ -30,22 +29,22 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
 
     node_->declare_parameter("force_filter_gate", 0.8);
     node_->declare_parameter("enable_vmc", false);
-    node_->declare_parameter("vmc_kp", 500.0);
-    node_->declare_parameter("vmc_kd", 120.0);
-    node_->declare_parameter("vmc_mass", 7.0);
+    node_->declare_parameter("vmc_kp", 300.0);
+    node_->declare_parameter("vmc_kd", 100.0);
+    node_->declare_parameter("vmc_mass", 4.0);
 
-    node_->declare_parameter("lf_grivate", 0.0);
-    node_->declare_parameter("rf_grivate", 0.0);
-    node_->declare_parameter("lb_grivate", 0.0);
-    node_->declare_parameter("rb_grivate", 0.0);
+    node_->declare_parameter("lf_grivate", 15.0);
+    node_->declare_parameter("rf_grivate", 15.0);
+    node_->declare_parameter("lb_grivate", 20.0);
+    node_->declare_parameter("rb_grivate", 20.0);
     node_->declare_parameter("lf_dx", 0.0);
     node_->declare_parameter("rf_dx", 0.0);
-    node_->declare_parameter("lb_dx", 0.0);
-    node_->declare_parameter("rb_dx", 0.0);
+    node_->declare_parameter("lb_dx", -0.05);
+    node_->declare_parameter("rb_dx", -0.05);
 
     node_->declare_parameter("step_support_rate", 0.55);                                        // 支撑相时间
-    node_->declare_parameter("step_time", 1.0);                                                 // 一个完整步态时间
-    node_->declare_parameter("step_height", 0.08);
+    node_->declare_parameter("step_time", 0.7);                                                 // 一个完整步态时间
+    node_->declare_parameter("step_height", 0.12);
     node_->declare_parameter("base_height",0.0);
 
 
@@ -106,6 +105,42 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
         }
         return result;
     });
+
+    // 读取所有默认参数
+    node_->get_parameter("force_filter_gate", force_filter_gate);
+    node_->get_parameter("enable_vmc", enable_vmc);
+    node_->get_parameter("vmc_kp", lf_z_vmc->kp);
+    lf_z_vmc->kp = lf_z_vmc->kp;
+    rf_z_vmc->kp = lf_z_vmc->kp;
+    lb_z_vmc->kp = lf_z_vmc->kp;
+    rb_z_vmc->kp = lf_z_vmc->kp;
+    node_->get_parameter("vmc_kd", lf_z_vmc->kd);
+    rf_z_vmc->kd = lf_z_vmc->kd;
+    lb_z_vmc->kd = lf_z_vmc->kd;
+    rb_z_vmc->kd = lf_z_vmc->kd;
+    node_->get_parameter("vmc_mass", lf_z_vmc->mass);
+    rf_z_vmc->mass = lf_z_vmc->mass;
+    lb_z_vmc->mass = lf_z_vmc->mass;
+    rb_z_vmc->mass = lf_z_vmc->mass;
+
+    node_->get_parameter("lf_grivate", robot_lf_grivate);
+    node_->get_parameter("rf_grivate", robot_rf_grivate);
+    node_->get_parameter("lb_grivate", robot_lb_grivate);
+    node_->get_parameter("rb_grivate", robot_rb_grivate);
+    double lf_dx_temp, rf_dx_temp, lb_dx_temp, rb_dx_temp;
+    node_->get_parameter("lf_dx", lf_dx_temp);
+    robot_lf_dx = 0.25 + lf_dx_temp;
+    node_->get_parameter("rf_dx", rf_dx_temp);
+    robot_rf_dx = 0.25 + rf_dx_temp;
+    node_->get_parameter("lb_dx", lb_dx_temp);
+    robot_lb_dx = -0.23 + lb_dx_temp;
+    node_->get_parameter("rb_dx", rb_dx_temp);
+    robot_rb_dx = -0.23 + rb_dx_temp;
+
+    node_->get_parameter("step_support_rate", step_support_rate);
+    node_->get_parameter("step_time", step_time);
+    node_->get_parameter("step_height", step_height);
+    node_->get_parameter("base_height", foot_base_height);
 
     robot_rotation.setRPY(0.0,0.0,0.0);
 
@@ -217,7 +252,7 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     RCLCPP_INFO(node_->get_logger(), "初始化完成");
 }
 
-RobotCalcNode::~RobotCalcNode() { delete vmc; }
+RobotCalcNode::~RobotCalcNode() {}
 
 void RobotCalcNode::show_callback() {
     // visualization_msgs::msg::Marker dot_marker;
@@ -349,14 +384,12 @@ void RobotCalcNode::legs_update() {
 
     if(robot_state==DOG_IDEL)   //单位置控制
     {
-        lf_foot_exp_pos = lf_leg_stop_pos;
-        rf_foot_exp_pos = rf_leg_stop_pos;
-        lb_foot_exp_pos = lb_leg_stop_pos;
-        rb_foot_exp_pos = rb_leg_stop_pos;
-        if(robot_req_state!=DOG_REQ_RUN)
-        {
+        lf_foot_exp_pos = lf_leg_stop_pos=Vector3D(0.0,0.0,0.0);
+        rf_foot_exp_pos = rf_leg_stop_pos=Vector3D(0.0,0.0,0.0);
+        lb_foot_exp_pos = lb_leg_stop_pos=Vector3D(0.0,0.0,0.0);
+        rb_foot_exp_pos = rb_leg_stop_pos=Vector3D(0.0,0.0,0.0);
+        if(robot_req_state==DOG_REQ_STOP)
             robot_state=DOG_STOP;
-        }
     }
     else if (robot_state == DOG_STOP) {                             // 狗保持站立
 
@@ -393,9 +426,10 @@ void RobotCalcNode::legs_update() {
             rb_z_vmc->targetUpdate(0.0, rb_cart_pos[2], 0.0, rb_cart_vel[2], -rb_cart_force[2]);
         rb_foot_exp_force = Vector3D(0.0, 0.0, -robot_rb_grivate);
 
-        if (robot_req_state == DOG_REQ_RUN){                    // 如果请求转移到行走状态，那么机器人状态先跳转到开始行走状态
+        if (robot_req_state == DOG_REQ_RUN)                   // 如果请求转移到行走状态，那么机器人状态先跳转到开始行走状态
             robot_state = DOG_STARTING;
-        }
+        else if(robot_req_state==DOG_REQ_IDEL)
+            robot_state=DOG_IDEL;
     } else if (robot_state == DOG_STARTING) {                  // 狗处于开始前进状态，规划一次初相位轨迹
         auto now                = node_->get_clock()->now();
         main_phrase_start_time  = now;

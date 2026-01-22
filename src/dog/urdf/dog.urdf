@@ -17,46 +17,70 @@ Stephen Brawner (brawner@gmail.com)
 
     <gazebo reference="body_link">
         <static>false</static>
-        <mu1>0.2</mu1>
-        <mu2>0.2</mu2>
         <self_collide>true</self_collide>
+        <mu1>0.3</mu1>
+        <mu2>0.3</mu2> 
     </gazebo>
 
     <gazebo reference="lf_link1">
         <self_collide>true</self_collide>
+        <mu1>0.3</mu1>
+        <mu2>0.3</mu2> 
     </gazebo>
     <gazebo reference="lf_link2">
         <self_collide>true</self_collide>
+        <mu1>0.3</mu1>
+        <mu2>0.3</mu2> 
     </gazebo>
     <gazebo reference="lf_link3">
         <self_collide>true</self_collide>
+        <mu1>0.3</mu1>
+        <mu2>0.3</mu2> 
     </gazebo>
     <gazebo reference="rf_link1">
         <self_collide>true</self_collide>
+        <mu1>0.3</mu1>
+        <mu2>0.3</mu2> 
     </gazebo>
     <gazebo reference="rf_link2">
         <self_collide>true</self_collide>
+        <mu1>0.3</mu1>
+        <mu2>0.3</mu2> 
     </gazebo>
     <gazebo reference="rf_link3">
         <self_collide>true</self_collide>
+        <mu1>0.3</mu1>
+        <mu2>0.3</mu2> 
     </gazebo>
     <gazebo reference="lb_link1">
         <self_collide>true</self_collide>
+        <mu1>0.3</mu1>
+        <mu2>0.3</mu2> 
     </gazebo>
     <gazebo reference="lb_link2">
         <self_collide>true</self_collide>
+        <mu1>0.3</mu1>
+        <mu2>0.3</mu2> 
     </gazebo>
     <gazebo reference="lb_link3">
         <self_collide>true</self_collide>
+        <mu1>0.3</mu1>
+        <mu2>0.3</mu2> 
     </gazebo>
     <gazebo reference="rb_link1">
         <self_collide>true</self_collide>
+        <mu1>0.3</mu1>
+        <mu2>0.3</mu2> 
     </gazebo>
     <gazebo reference="rb_link2">
         <self_collide>true</self_collide>
+        <mu1>0.3</mu1>
+        <mu2>0.3</mu2> 
     </gazebo>
     <gazebo reference="rb_link3">
         <self_collide>true</self_collide>
+        <mu1>0.3</mu1>
+        <mu2>0.3</mu2> 
     </gazebo>
 
     <gazebo reference="body_link">

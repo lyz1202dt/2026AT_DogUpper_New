@@ -20,12 +20,12 @@ controller_interface::CallbackReturn DogController::on_init() {
     joint_kd[2]=0.0;
 
     auto node=get_node();
-    node->declare_parameter("joint1_kp",5.0);
-    node->declare_parameter("joint1_kd",0.4);
-    node->declare_parameter("joint2_kp",5.0);
-    node->declare_parameter("joint2_kd",0.3);
-    node->declare_parameter("joint3_kp",2.0);
-    node->declare_parameter("joint3_kd",0.1);
+    node->declare_parameter("joint1_kp",50.0);
+    node->declare_parameter("joint1_kd",1.0);
+    node->declare_parameter("joint2_kp",60.0);
+    node->declare_parameter("joint2_kd",1.5);
+    node->declare_parameter("joint3_kp",50.0);
+    node->declare_parameter("joint3_kd",2.0);
 
     param_cb_=node->add_on_set_parameters_callback([this](const std::vector<rclcpp::Parameter>& params) {
         rcl_interfaces::msg::SetParametersResult result;
