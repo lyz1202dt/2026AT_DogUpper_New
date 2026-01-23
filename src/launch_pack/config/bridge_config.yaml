@@ -4,3 +4,14 @@
   ros_type_name: "sensor_msgs/msg/Imu"      # 必须是 ros_type_name
   gz_type_name: "gz.msgs.IMU"       # 必须是 gz_type_name
   direction: GZ_TO_ROS
+
+- topic_name: "/world/dog_world/dynamic_pose/info"
+  ros_type_name: "geometry_msgs/msg/PoseArray"
+  ign_type_name: "ignition.msgs.Pose_V"
+  direction: IGN_TO_ROS
+
+# - topic_name: "/world/dog_world/dynamic_pose/info/name"
+#   ros_type_name: "std_msgs/msg/String"
+#   ign_type_name: "ignition.msgs.StringMsg_V"
+#   direction: IGN_TO_ROS
+#实际上失效，Gazebo没有发布这个话题

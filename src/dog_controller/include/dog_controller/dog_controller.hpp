@@ -28,9 +28,11 @@ private:
 
     robot_interfaces::msg::Robot joints_target;
 
+    double joint_torque_filter_gate{0.8};
     double joint_kp[3],joint_kd[3];
     std::ofstream csv_file_;
     bool csv_initialized_;
     std::chrono::steady_clock::time_point start_time_;
+    int debug_cnt=0;
 };
 } // namespace dog_controller

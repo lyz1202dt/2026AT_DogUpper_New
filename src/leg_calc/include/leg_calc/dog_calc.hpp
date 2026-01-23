@@ -43,7 +43,10 @@ public:
         DOG_STOP,
         DOG_STARTING,
         DOG_SETP,
-        DOG_ENDING
+        DOG_ENDING,
+
+        DOG_CLIMB_STEPS,   //登上台阶
+        DOG_CROSS_WALL     //跨越墙体任务
     };
 
     enum DogReqState{  //请求的机器人状态
@@ -53,11 +56,13 @@ public:
     };
 
 private:
+
     void show_callback();
     std::tuple<Vector3D, Vector3D, Vector3D> signal_leg_calc(
         const Vector3D& exp_cart_pos, const Vector3D& exp_cart_vel, const Vector3D& exp_cart_acc, const Vector3D& exp_cart_force,
         std::shared_ptr<LegCalc> leg_calc);
     void legs_update();
+    static void quaternionLowPassFilter(double& w,  double& x,  double& y,  double& z,double  w1, double  x1, double  y1, double  z1,double alpha);
 
     rclcpp::Node::SharedPtr node_;
     rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_server_;
@@ -68,7 +73,7 @@ private:
     std::shared_ptr<VMC> rb_z_vmc, rb_x_vmc, rb_y_vmc;
 
     bool enable_vmc{false};
-    double force_filter_gate{0.8};
+    double direction_filter_gate{0.8};
     
     rclcpp::TimerBase::SharedPtr ui_update_timer;
     rclcpp::TimerBase::SharedPtr legs_update_timer;

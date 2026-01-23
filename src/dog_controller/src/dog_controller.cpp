@@ -28,6 +28,7 @@ controller_interface::CallbackReturn DogController::on_init() {
     node->declare_parameter("joint3_kp",50.0);
     node->declare_parameter("joint3_kd",2.0);
     node->declare_parameter("record_lf_torque",false);
+    node->declare_parameter("joint_torque_filter_gate",0.8);
 
     param_cb_=node->add_on_set_parameters_callback([this](const std::vector<rclcpp::Parameter>& params) {
         rcl_interfaces::msg::SetParametersResult result;
@@ -59,7 +60,8 @@ controller_interface::CallbackReturn DogController::on_init() {
                     csv_file_.close();
                 }
             }
-                
+            else if(param.get_name()=="joint_torque_filter_gate")   //设置电机力矩低通滤波器增益
+                joint_torque_filter_gate=param.as_double();
         }
         return result;
     });
@@ -95,7 +97,7 @@ controller_interface::return_type DogController::update(const rclcpp::Time& time
     {
         state_msg.legs[i / 3].joints[i % 3].rad    = state_interfaces_[i * 3 + 0].get_value();
         state_msg.legs[i / 3].joints[i % 3].omega  = state_interfaces_[i * 3 + 1].get_value();
-        state_msg.legs[i / 3].joints[i % 3].torque = state_interfaces_[i * 3 + 2].get_value();
+        state_msg.legs[i / 3].joints[i % 3].torque =joint_torque_filter_gate* state_msg.legs[i / 3].joints[i % 3].torque+(1.0-joint_torque_filter_gate)*state_interfaces_[i * 3 + 2].get_value();
     }
     state_publisher->publish(state_msg);    // 发布关节状态
 
@@ -111,7 +113,7 @@ controller_interface::return_type DogController::update(const rclcpp::Time& time
         csv_file_.flush();
     }
 
-    for (size_t i = 0; i < joints_num; i++) // 将计算结果写入硬件层
+   for (size_t i = 0; i < joints_num; i++) // 将计算结果写入硬件层
     {
         // command_interfaces_[i * 3 + 0].set_value((double)joints_target.legs[i / 3].joints[i % 3].rad);
         // command_interfaces_[i * 3 + 1].set_value((double)joints_target.legs[i / 3].joints[i % 3].omega);

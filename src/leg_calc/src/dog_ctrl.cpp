@@ -1,6 +1,7 @@
 #include "dog_calc.hpp"
 #include "step.h"
 #include <Eigen/src/Core/Matrix.h>
+#include <algorithm>
 #include <chrono>
 #include <kdl/frames.hpp>
 #include <rclcpp/duration.hpp>
@@ -27,7 +28,7 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     rb_y_vmc=std::make_shared<VMC>(160,60,3.0,0.5,0.2,0.1,10ms);
 
 
-    node_->declare_parameter("force_filter_gate", 0.8);
+    node_->declare_parameter("direction_filter_gate", 0.2);
     node_->declare_parameter("enable_vmc", false);
     node_->declare_parameter("vmc_kp", 300.0);
     node_->declare_parameter("vmc_kd", 100.0);
@@ -55,8 +56,12 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
         for (const auto& param : params) {
             if (param.get_name() == "enable_vmc")
                 enable_vmc = param.as_bool();
-            else if (param.get_name() == "force_filter_gate")
-                force_filter_gate = param.as_double();
+            else if (param.get_name() == "direction_filter_gate")
+            {
+                direction_filter_gate = param.as_double();
+                direction_filter_gate=std::clamp(direction_filter_gate,0.0,1.0);
+            }
+                
             else if (param.get_name() == "vmc_kp")
             {
                 lf_z_vmc->kp = param.as_double();
@@ -107,7 +112,7 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     });
 
     // 读取所有默认参数
-    node_->get_parameter("force_filter_gate", force_filter_gate);
+    node_->get_parameter("direction_filter_gate", direction_filter_gate);
     node_->get_parameter("enable_vmc", enable_vmc);
     node_->get_parameter("vmc_kp", lf_z_vmc->kp);
     lf_z_vmc->kp = lf_z_vmc->kp;
@@ -152,10 +157,15 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
 
     imu_sub=node_->create_subscription<sensor_msgs::msg::Imu>("imu",rclcpp::SensorDataQoS(), [this](const sensor_msgs::msg::Imu &msg){
         //.//RCLCPP_INFO(node_->get_logger(),"posture:%lf,%lf,%lf,%lf",msg.orientation.w,msg.orientation.x,msg.orientation.y,msg.orientation.z);
-        robot_rotation.setW(msg.orientation.w);
-        robot_rotation.setX(msg.orientation.x);
-        robot_rotation.setY(msg.orientation.y);
-        robot_rotation.setZ(msg.orientation.z);
+        double qw=robot_rotation.getW();
+        double qx=robot_rotation.getX();
+        double qy=robot_rotation.getY();
+        double qz=robot_rotation.getZ();
+        quaternionLowPassFilter(qw,qx,qy,qz,msg.orientation.w,msg.orientation.x,msg.orientation.y,msg.orientation.z,direction_filter_gate);   //(0-强滤波、1-不滤波)
+        robot_rotation.setW(qw);
+        robot_rotation.setX(qx);
+        robot_rotation.setY(qy);
+        robot_rotation.setZ(qz);
     });
 
     legs_state_sub =
@@ -339,13 +349,12 @@ std::tuple<Vector3D, Vector3D, Vector3D> RobotCalcNode::signal_leg_calc(
     std::shared_ptr<LegCalc> leg_calc) {
     Vector3D joint_pos, joint_omega, joint_torque;
 
-    (void)exp_cart_acc;                                        // 目前还没有实现将笛卡尔的加速度转为关节空间的加速度，所以这个参数先不用
 
     int result;
     joint_pos    = leg_calc->joint_pos(exp_cart_pos, &result); // 一般这个位置不可能会迭代失败，所以不再对result进行处理
     joint_omega  = leg_calc->joint_vel(joint_pos, exp_cart_vel);
     joint_torque = leg_calc->joint_torque_foot_force(joint_pos, exp_cart_force);
-    joint_torque += leg_calc->joint_torque_dynamic(joint_pos, joint_omega, Vector3D(0.0, 0.0, 0.0));
+    joint_torque += leg_calc->joint_torque_dynamic(joint_pos, joint_omega, exp_cart_acc);
     return std::make_tuple(joint_pos, joint_omega, joint_torque);
 }
 
@@ -599,6 +608,22 @@ void RobotCalcNode::legs_update() {
 
         robot_state = DOG_STOP;
     }
+    else if(robot_state == DOG_CLIMB_STEPS)  //需要登上台阶
+    {
+        //TODO:计算机器人质心位置
+        //TODO:计算质心在水平面上的投影
+        //TODO:根据质心位置计算足端施加力的方向和大小（在地面坐标系下垂直向上，向上的力的大小按照到质心的距离分配）
+        //TODO:执行VMC
+        //TODO:将VMC计算的力转换到机器人坐标系下
+        //TODO:(可选)使用pitch和roll方向简单的PD控制器增加对机器人姿态的控制
+    }
+    else if(robot_state == DOG_CROSS_WALL)  //需要跨过高墙
+    {
+        //TODO:狗子左前褪抬起来，其它三条腿支撑，左前褪搭上高墙
+        //TODO:右前腿搭上高墙
+        //TODO:前面两条腿往后蹬，把狗身往前移
+        //TODO:后腿由后面抬起，经过侧面摆到前面，利用小腿推高墙，进而通过高墙
+    }
 
     auto lf_leg_joints_target = signal_leg_calc(lf_foot_exp_pos, lf_foot_exp_vel, lf_foot_exp_acc, lf_foot_exp_force, lf_leg_calc);
     auto rf_leg_joints_target = signal_leg_calc(rf_foot_exp_pos, rf_foot_exp_vel, rf_foot_exp_acc, rf_foot_exp_force, rf_leg_calc);
@@ -680,4 +705,72 @@ void RobotCalcNode::legs_update() {
         }
 #endif
     }
+}
+
+
+void RobotCalcNode::quaternionLowPassFilter(
+    double& w,  double& x,  double& y,  double& z,
+    double  w1, double  x1, double  y1, double  z1,
+    double alpha)
+{
+
+    auto normalizeQuaternion=[](double& w, double& x, double& y, double& z){
+        double norm = std::sqrt(w*w + x*x + y*y + z*z);
+    if (norm < 1e-12) {
+        // 退化情况，回到单位四元数
+        w = 1.0; x = y = z = 0.0;
+        return;
+    }
+    w /= norm;
+    x /= norm;
+    y /= norm;
+    z /= norm;
+    };
+
+
+    // 1. 单位化输入（防御性编程）
+    normalizeQuaternion(w,  x,  y,  z);
+    normalizeQuaternion(w1, x1, y1, z1);
+
+    // 2. 点积，判断是否需要取反（双覆盖问题）
+    double dot = w*w1 + x*x1 + y*y1 + z*z1;
+    if (dot < 0.0) {
+        w1 = -w1;
+        x1 = -x1;
+        y1 = -y1;
+        z1 = -z1;
+        dot = -dot;
+    }
+
+    // 3. 小角度近似（避免 acos / sin 数值不稳定）
+    const double DOT_THRESHOLD = 0.9995;
+    if (dot > DOT_THRESHOLD) {
+        // 线性插值
+        w = w + alpha * (w1 - w);
+        x = x + alpha * (x1 - x);
+        y = y + alpha * (y1 - y);
+        z = z + alpha * (z1 - z);
+        normalizeQuaternion(w, x, y, z);
+        return;
+    }
+
+    // 4. 标准 SLERP
+    double theta = std::acos(dot);
+    double sin_theta = std::sin(theta);
+
+    double w_a = std::sin((1.0 - alpha) * theta) / sin_theta;
+    double w_b = std::sin(alpha * theta) / sin_theta;
+
+    double w_new = w_a * w  + w_b * w1;
+    double x_new = w_a * x  + w_b * x1;
+    double y_new = w_a * y  + w_b * y1;
+    double z_new = w_a * z  + w_b * z1;
+
+    w = w_new;
+    x = x_new;
+    y = y_new;
+    z = z_new;
+
+    // 5. 再次单位化（强烈建议保留）
+    normalizeQuaternion(w, x, y, z);
 }
