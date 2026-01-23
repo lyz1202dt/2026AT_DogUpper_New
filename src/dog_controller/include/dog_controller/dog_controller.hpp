@@ -27,8 +27,10 @@ private:
     rclcpp_lifecycle::LifecycleNode::OnSetParametersCallbackHandle::SharedPtr param_cb_;
 
     robot_interfaces::msg::Robot joints_target;
+    robot_interfaces::msg::Robot joints_state;
 
     double joint_torque_filter_gate{0.8};
+    double joint_omega_filter_gate{0.8};
     double joint_kp[3],joint_kd[3];
     std::ofstream csv_file_;
     bool csv_initialized_;

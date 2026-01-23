@@ -63,7 +63,7 @@ private:
         std::shared_ptr<LegCalc> leg_calc);
     void legs_update();
     static void quaternionLowPassFilter(double& w,  double& x,  double& y,  double& z,double  w1, double  x1, double  y1, double  z1,double alpha);
-
+    Vector3D get_grivate_center_pose(const Vector3D &lf_joint_pos,const Vector3D &rf_joint_pos,const Vector3D &lb_joint_pos,const Vector3D &rb_joint_pos);
     rclcpp::Node::SharedPtr node_;
     rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_server_;
 
@@ -131,6 +131,7 @@ private:
     Eigen::Vector3d lf_leg_stop_pos,rf_leg_stop_pos,lb_leg_stop_pos,rb_leg_stop_pos;
 
     sensor_msgs::msg::JointState joint_display_msg;
+    Vector3D comm_pos;
 
     // 机器人状态
     DogState robot_state{DOG_IDEL};

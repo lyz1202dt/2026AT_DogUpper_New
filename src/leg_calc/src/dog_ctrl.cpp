@@ -259,6 +259,10 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     ui_update_timer   = node_->create_wall_timer(50ms, std::bind(&RobotCalcNode::show_callback, this));
     legs_update_timer = node_->create_wall_timer(10ms, std::bind(&RobotCalcNode::legs_update, this));
 
+    comm_pos=get_grivate_center_pose(Vector3D(0.0,0.0,0.0), Vector3D(0.0,0.0,0.0), Vector3D(0.0,0.0,0.0), Vector3D(0.0,0.0,0.0));
+    
+
+
     RCLCPP_INFO(node_->get_logger(), "初始化完成");
 }
 
@@ -287,6 +291,44 @@ void RobotCalcNode::show_callback() {
     // dot_marker.color.b = 0.0;
 
     // marker_publisher->publish(dot_marker); // 发布点标记（狗腿足端位置）
+
+
+    // 创建质心可视化标记
+    visualization_msgs::msg::Marker com_marker;
+    com_marker.header.frame_id = "body_link";
+    com_marker.header.stamp = node_->get_clock()->now();
+    com_marker.ns = "center_of_mass";
+    com_marker.id = 1;
+    com_marker.type = visualization_msgs::msg::Marker::SPHERE;
+    com_marker.action = visualization_msgs::msg::Marker::ADD;
+    
+    // 设置质心位置
+    com_marker.pose.position.x = comm_pos[0];
+    com_marker.pose.position.y = comm_pos[1];
+    com_marker.pose.position.z = comm_pos[2];
+    com_marker.pose.orientation.x = 0.0;
+    com_marker.pose.orientation.y = 0.0;
+    com_marker.pose.orientation.z = 0.0;
+    com_marker.pose.orientation.w = 1.0;
+    
+    // 设置球体尺寸
+    com_marker.scale.x = 0.08;
+    com_marker.scale.y = 0.08;
+    com_marker.scale.z = 0.08;
+    
+    // 设置颜色 - 红色表示质心
+    com_marker.color.a = 1.0;
+    com_marker.color.r = 1.0;
+    com_marker.color.g = 0.0;
+    com_marker.color.b = 0.0;
+    
+    com_marker.lifetime = rclcpp::Duration(0, 0);
+    
+    // 发布质心标记
+    marker_publisher->publish(com_marker);
+
+
+
 
     geometry_msgs::msg::TransformStamped t;
     t.header.stamp = node_->get_clock()->now();
@@ -360,6 +402,7 @@ std::tuple<Vector3D, Vector3D, Vector3D> RobotCalcNode::signal_leg_calc(
 
 
 void RobotCalcNode::legs_update() {
+    RCLCPP_INFO(node_->get_logger(),"Update...");
     auto lf_foot_exp_pos   = Vector3D(0.0, 0.0, 0.0);
     auto lf_foot_exp_vel   = Vector3D(0.0, 0.0, 0.0);
     auto lf_foot_exp_acc   = Vector3D(0.0, 0.0, 0.0);
@@ -705,6 +748,80 @@ void RobotCalcNode::legs_update() {
         }
 #endif
     }
+}
+
+
+Vector3D RobotCalcNode::get_grivate_center_pose(const Vector3D& lf_joint_pos, const Vector3D& rf_joint_pos, const Vector3D& lb_joint_pos, const Vector3D& rb_joint_pos) {
+    // 使用 KDL 计算全身质心（在 body_link 坐标系下）
+    // 注意：这里用各 link 的 RigidBodyInertia 来做质量加权平均。
+    //      需要 URDF 中每个 link 都有 inertial 标签，否则质量会为 0。
+
+    auto accumulate_chain_com = [](const KDL::Chain& chain, const Vector3D& q_eigen, double& mass_sum, KDL::Vector& com_sum) {
+        KDL::JntArray q(chain.getNrOfJoints());
+        for (unsigned int i = 0; i < chain.getNrOfJoints() && i < 3; ++i) {
+            q(i) = q_eigen[i];
+        }
+
+        KDL::Frame T = KDL::Frame::Identity();
+
+        unsigned int joint_idx = 0;
+        for (unsigned int seg_idx = 0; seg_idx < chain.getNrOfSegments(); ++seg_idx) {
+            const auto& seg = chain.getSegment(seg_idx);
+
+            // 计算该段末端在基座下的位姿
+            if (seg.getJoint().getType() != KDL::Joint::None) {
+                T = T * seg.pose(q(joint_idx));
+                joint_idx++;
+            } else {
+                T = T * seg.pose(0.0);
+            }
+
+            // 该 segment 的刚体惯量（在 segment 坐标系下）
+            const KDL::RigidBodyInertia& rbi = seg.getInertia();
+            const double m                  = rbi.getMass();
+            if (m <= 0.0) {
+                continue;
+            }
+
+            // COM 在 segment 坐标系下的位置
+            const KDL::Vector c_seg = rbi.getCOG();
+            // 转到基座坐标系
+            const KDL::Vector c_base = T * c_seg;
+
+            mass_sum += m;
+            com_sum  = com_sum + c_base * m;
+        }
+    };
+
+    double mass_sum = 0.0;
+    KDL::Vector com_sum(0.0, 0.0, 0.0);
+
+    // 4 条腿分别从 body_link 到足端 link4；它们共享 body_link，但各自 inertia 不重复（body_link 本体要单独加）
+    accumulate_chain_com(lf_leg_chain, lf_joint_pos, mass_sum, com_sum);
+    accumulate_chain_com(rf_leg_chain, rf_joint_pos, mass_sum, com_sum);
+    accumulate_chain_com(lb_leg_chain, lb_joint_pos, mass_sum, com_sum);
+    accumulate_chain_com(rb_leg_chain, rb_joint_pos, mass_sum, com_sum);
+
+    // 加上 body_link 自身的质量与质心（树中 body_link 是 root，不在各腿 chain 的 segment 中）
+    {
+        const auto it = tree.getSegment("body_link");
+        if (it != tree.getSegments().end()) {
+            const auto body_seg = it->second.segment;
+            const auto& rbi     = body_seg.getInertia();
+            const double m      = rbi.getMass();
+            if (m > 0.0) {
+                mass_sum += m;
+                com_sum  = com_sum + rbi.getCOG() * m; // body_link 在 body_link 坐标系下
+            }
+        }
+    }
+
+    if (mass_sum <= 1e-9) {
+        return Vector3D(0.0, 0.0, 0.0);
+    }
+
+    const KDL::Vector com = com_sum / mass_sum;
+    return Vector3D(com.x(), com.y(), com.z());
 }
 
 
