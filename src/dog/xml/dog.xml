@@ -37,13 +37,13 @@
 
     <worldbody>
         <!-- 添加地面 -->
-        <geom name="ground" type="plane" size="50 50 0.3" pos="0 0 0" material="grid" />
+        <!-- <geom name="ground" type="plane" size="50 50 0.3" pos="0 0 0" material="grid" /> -->
 
         <!-- 添加光源 -->
-        <light name="light" pos="0 0 5" dir="0 0 -1" directional="true" />
-        <body name="robot" pos="0 0 0.415" quat="1 0 0 0">
+        <!-- <light name="light" pos="0 0 5" dir="0 0 -1" directional="true" /> -->
+        <body name="robot" pos="0 0 1" quat="1 0 0 0">
             <joint name="float_base" type="free" />
-            <inertial pos="0 0 0" quat="1 0 0 0" mass="4.713" diaginertia="0.0168 0.0566 0.0647" />
+            <inertial pos="0 0 0.5" quat="1 0 0 0" mass="4.713" diaginertia="0.0168 0.0566 0.0647" />
             <site name="imu" pos="-0.02557 0 0.04232" />
             <geom type="mesh" mesh="body_link"
                 contype="1" conaffinity="1"

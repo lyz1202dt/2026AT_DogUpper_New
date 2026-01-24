@@ -17,7 +17,7 @@ def generate_launch_description():
     launch_pack_path=get_package_share_directory("launch_pack")
 
     namespace=""
-    mjcf_file=os.path.join(dog_pack_path,"xml","dog.xml")
+    mjcf_file=os.path.join(dog_pack_path,"xml","scene.xml")
     urdf_file=os.path.join(dog_pack_path,"urdf","dog.urdf")
     controller_config_file=os.path.join(launch_pack_path,"config","ros2_controller.yaml")
 
