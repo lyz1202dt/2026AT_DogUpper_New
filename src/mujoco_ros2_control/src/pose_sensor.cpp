@@ -57,20 +57,27 @@ namespace mujoco_ros2_sensors {
 
     void PoseSensor::update() {
         //if (sensor_.position && sensor_.orientation) {
-            t_.header.stamp.sec = std::floor(mujoco_data_->time);
-            t_.header.stamp.nanosec = std::floor((mujoco_data_->time-std::floor(mujoco_data_->time))*1e9);
-            t_.header.frame_id = sensor_.frame_id;
-            t_.child_frame_id = sensor_.body_name;
+            // t_.header.stamp.sec = std::floor(mujoco_data_->time);
+            // t_.header.stamp.nanosec = std::floor((mujoco_data_->time - std::floor(mujoco_data_->time)) * 1e9);
 
-            t_.transform.translation.x = mujoco_data_->sensordata[sensor_.position_sensor_adr];
-            t_.transform.translation.y = mujoco_data_->sensordata[sensor_.position_sensor_adr + 1];
-            t_.transform.translation.z = mujoco_data_->sensordata[sensor_.position_sensor_adr + 2];
+            // // frame_id: parent frame; child_frame_id: body name in the model.
+            // // Avoid TF_SELF_TRANSFORM when they happen to be equal (RViz/TF2 will ignore it).
+            // t_.header.frame_id = sensor_.frame_id;
+            // if (sensor_.body_name == sensor_.frame_id) {
+            //     t_.child_frame_id = sensor_.body_name + "_link";
+            // } else {
+            //     t_.child_frame_id = sensor_.body_name;
+            // }
 
-            t_.transform.rotation.x = mujoco_data_->sensordata[sensor_.orientation_sensor_adr + 1];
-            t_.transform.rotation.y = mujoco_data_->sensordata[sensor_.orientation_sensor_adr + 2];
-            t_.transform.rotation.z = mujoco_data_->sensordata[sensor_.orientation_sensor_adr + 3];
-            t_.transform.rotation.w = mujoco_data_->sensordata[sensor_.orientation_sensor_adr];
-            tf_broadcaster_->sendTransform(t_);
+            // t_.transform.translation.x = mujoco_data_->sensordata[sensor_.position_sensor_adr];
+            // t_.transform.translation.y = mujoco_data_->sensordata[sensor_.position_sensor_adr + 1];
+            // t_.transform.translation.z = mujoco_data_->sensordata[sensor_.position_sensor_adr + 2];
+
+            // t_.transform.rotation.x = mujoco_data_->sensordata[sensor_.orientation_sensor_adr + 1];
+            // t_.transform.rotation.y = mujoco_data_->sensordata[sensor_.orientation_sensor_adr + 2];
+            // t_.transform.rotation.z = mujoco_data_->sensordata[sensor_.orientation_sensor_adr + 3];
+            // t_.transform.rotation.w = mujoco_data_->sensordata[sensor_.orientation_sensor_adr];
+            // tf_broadcaster_->sendTransform(t_);
         //} else {
             if (pose_stamped_publisher_->trylock()) {
                 pose_stamped_publisher_->msg_.header.stamp.sec = std::floor(mujoco_data_->time);

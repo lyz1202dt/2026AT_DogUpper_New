@@ -3,9 +3,12 @@
 #include <Eigen/src/Core/Matrix.h>
 #include <algorithm>
 #include <chrono>
+#include <geometry_msgs/msg/detail/pose__struct.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
 #include <kdl/frames.hpp>
 #include <rclcpp/duration.hpp>
 #include <robot_interfaces/msg/robot.hpp>
+#include <sensor_msgs/msg/detail/imu__struct.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <tuple>
 
@@ -155,18 +158,26 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
 
     legs_target_pub = node_->create_publisher<robot_interfaces::msg::Robot>("legs_target", 10); // 创建期望位置发布者
 
-    // imu_sub=node_->create_subscription<sensor_msgs::msg::Imu>("imu",rclcpp::SensorDataQoS(), [this](const sensor_msgs::msg::Imu &msg){
-    //     //.//RCLCPP_INFO(node_->get_logger(),"posture:%lf,%lf,%lf,%lf",msg.orientation.w,msg.orientation.x,msg.orientation.y,msg.orientation.z);
-    //     double qw=robot_rotation.getW();
-    //     double qx=robot_rotation.getX();
-    //     double qy=robot_rotation.getY();
-    //     double qz=robot_rotation.getZ();
-    //     quaternionLowPassFilter(qw,qx,qy,qz,msg.orientation.w,msg.orientation.x,msg.orientation.y,msg.orientation.z,direction_filter_gate);   //(0-强滤波、1-不滤波)
-    //     robot_rotation.setW(qw);
-    //     robot_rotation.setX(qx);
-    //     robot_rotation.setY(qy);
-    //     robot_rotation.setZ(qz);
-    // });
+    // pose_sensor 发布的是 PoseStamped（见 mujoco_ros2_control/src/pose_sensor.cpp），这里必须用 PoseStamped 才能收到消息
+    // 同时 QoS 需要与发布端兼容（发布端当前是 RELIABLE + TRANSIENT_LOCAL）
+    imu_sub = node_->create_subscription<geometry_msgs::msg::PoseStamped>(
+        "/imu_pose_sensor/pose",
+        rclcpp::QoS(rclcpp::KeepLast(10)).reliable().transient_local(),
+        [this](const geometry_msgs::msg::PoseStamped &msg) {
+            const auto &q_msg = msg.pose.orientation;
+
+            double qw = robot_rotation.getW();
+            double qx = robot_rotation.getX();
+            double qy = robot_rotation.getY();
+            double qz = robot_rotation.getZ();
+
+            quaternionLowPassFilter(qw, qx, qy, qz, q_msg.w, q_msg.x, q_msg.y, q_msg.z, direction_filter_gate);  //(0-强滤波、1-不滤波)
+
+            robot_rotation.setW(qw);
+            robot_rotation.setX(qx);
+            robot_rotation.setY(qy);
+            robot_rotation.setZ(qz);
+        });
 
     legs_state_sub =
         node_->create_subscription<robot_interfaces::msg::Robot>("legs_status", 10, [this](const robot_interfaces::msg::Robot& msg) {
@@ -402,7 +413,6 @@ std::tuple<Vector3D, Vector3D, Vector3D> RobotCalcNode::signal_leg_calc(
 
 
 void RobotCalcNode::legs_update() {
-    RCLCPP_INFO(node_->get_logger(),"Update...");
     auto lf_foot_exp_pos   = Vector3D(0.0, 0.0, 0.0);
     auto lf_foot_exp_vel   = Vector3D(0.0, 0.0, 0.0);
     auto lf_foot_exp_acc   = Vector3D(0.0, 0.0, 0.0);

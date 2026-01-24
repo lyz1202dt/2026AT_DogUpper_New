@@ -201,9 +201,8 @@
                 </body>
             </body>
         </body>
-
-
     </worldbody>
+
     <actuator>
         <!-- Left Front -->
         <motor name="LF_hip" joint="lf_joint1" gear="1" ctrllimited="true" ctrlrange="-12 12" />
@@ -225,6 +224,7 @@
         <motor name="RB_thigh" joint="rb_joint2" gear="1" ctrllimited="true" ctrlrange="-12 12" />
         <motor name="RB_calf" joint="rb_joint3" gear="1" ctrllimited="true" ctrlrange="-12 12" />
     </actuator>
+
     <sensor>
         <!-- actuator position -->
         <actuatorpos name="LF_hip_p" actuator="LF_hip" />
@@ -276,6 +276,11 @@
         <actuatorfrc name="RB_hip_f" actuator="RB_hip" noise="1e-3" />
         <actuatorfrc name="RB_thigh_f" actuator="RB_thigh" noise="1e-3" />
         <actuatorfrc name="RB_calf_f" actuator="RB_calf" noise="1e-3" />
+
+        <!-- IMU (imu_main): pose/orientation + acceleration + angular velocity -->
+        <accelerometer name="imu_main_acc" site="imu" />
+        <gyro name="imu_main_gyro" site="imu" />
+        <framequat name="imu_main_quat" objtype="site" objname="imu" />
     </sensor>
 
 </mujoco>
