@@ -155,18 +155,18 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
 
     legs_target_pub = node_->create_publisher<robot_interfaces::msg::Robot>("legs_target", 10); // 创建期望位置发布者
 
-    imu_sub=node_->create_subscription<sensor_msgs::msg::Imu>("imu",rclcpp::SensorDataQoS(), [this](const sensor_msgs::msg::Imu &msg){
-        //.//RCLCPP_INFO(node_->get_logger(),"posture:%lf,%lf,%lf,%lf",msg.orientation.w,msg.orientation.x,msg.orientation.y,msg.orientation.z);
-        double qw=robot_rotation.getW();
-        double qx=robot_rotation.getX();
-        double qy=robot_rotation.getY();
-        double qz=robot_rotation.getZ();
-        quaternionLowPassFilter(qw,qx,qy,qz,msg.orientation.w,msg.orientation.x,msg.orientation.y,msg.orientation.z,direction_filter_gate);   //(0-强滤波、1-不滤波)
-        robot_rotation.setW(qw);
-        robot_rotation.setX(qx);
-        robot_rotation.setY(qy);
-        robot_rotation.setZ(qz);
-    });
+    // imu_sub=node_->create_subscription<sensor_msgs::msg::Imu>("imu",rclcpp::SensorDataQoS(), [this](const sensor_msgs::msg::Imu &msg){
+    //     //.//RCLCPP_INFO(node_->get_logger(),"posture:%lf,%lf,%lf,%lf",msg.orientation.w,msg.orientation.x,msg.orientation.y,msg.orientation.z);
+    //     double qw=robot_rotation.getW();
+    //     double qx=robot_rotation.getX();
+    //     double qy=robot_rotation.getY();
+    //     double qz=robot_rotation.getZ();
+    //     quaternionLowPassFilter(qw,qx,qy,qz,msg.orientation.w,msg.orientation.x,msg.orientation.y,msg.orientation.z,direction_filter_gate);   //(0-强滤波、1-不滤波)
+    //     robot_rotation.setW(qw);
+    //     robot_rotation.setX(qx);
+    //     robot_rotation.setY(qy);
+    //     robot_rotation.setZ(qz);
+    // });
 
     legs_state_sub =
         node_->create_subscription<robot_interfaces::msg::Robot>("legs_status", 10, [this](const robot_interfaces::msg::Robot& msg) {
