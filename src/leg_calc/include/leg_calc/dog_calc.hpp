@@ -20,6 +20,7 @@
 #include <rclcpp/subscription.hpp>
 #include <robot_interfaces/msg/robot.hpp>
 #include <robot_interfaces/msg/move_cmd.hpp>
+#include <sensor_msgs/msg/detail/imu__struct.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
 #include <std_msgs/msg/color_rgba.hpp>
 #include <tuple>
@@ -42,7 +43,10 @@ public:
         DOG_STOP,
         DOG_STARTING,
         DOG_SETP,
-        DOG_ENDING
+        DOG_ENDING,
+
+        DOG_CLIMB_STEPS,   //登上台阶
+        DOG_CROSS_WALL     //跨越墙体任务
     };
 
     enum DogReqState{  //请求的机器人状态
@@ -52,12 +56,14 @@ public:
     };
 
 private:
+
     void show_callback();
     std::tuple<Vector3D, Vector3D, Vector3D> signal_leg_calc(
         const Vector3D& exp_cart_pos, const Vector3D& exp_cart_vel, const Vector3D& exp_cart_acc, const Vector3D& exp_cart_force,
         std::shared_ptr<LegCalc> leg_calc);
     void legs_update();
-
+    static void quaternionLowPassFilter(double& w,  double& x,  double& y,  double& z,double  w1, double  x1, double  y1, double  z1,double alpha);
+    Vector3D get_grivate_center_pose(const Vector3D &lf_joint_pos,const Vector3D &rf_joint_pos,const Vector3D &lb_joint_pos,const Vector3D &rb_joint_pos);
     rclcpp::Node::SharedPtr node_;
     rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_server_;
 
@@ -67,7 +73,7 @@ private:
     std::shared_ptr<VMC> rb_z_vmc, rb_x_vmc, rb_y_vmc;
 
     bool enable_vmc{false};
-    double force_filter_gate{0.8};
+    double direction_filter_gate{0.8};
     
     rclcpp::TimerBase::SharedPtr ui_update_timer;
     rclcpp::TimerBase::SharedPtr legs_update_timer;
@@ -75,6 +81,7 @@ private:
     rclcpp::Publisher<robot_interfaces::msg::Robot>::SharedPtr legs_target_pub;
     rclcpp::Subscription<robot_interfaces::msg::Robot>::SharedPtr legs_state_sub;
     rclcpp::Subscription<robot_interfaces::msg::MoveCmd>::SharedPtr move_cmd_sub;
+    rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub;
     rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr rviz_joint_publisher;
     rclcpp::SyncParametersClient::SharedPtr robot_description_param_;
     std::unique_ptr<tf2_ros::TransformBroadcaster> robot_tf_broadcaster;
@@ -124,6 +131,7 @@ private:
     Eigen::Vector3d lf_leg_stop_pos,rf_leg_stop_pos,lb_leg_stop_pos,rb_leg_stop_pos;
 
     sensor_msgs::msg::JointState joint_display_msg;
+    Vector3D comm_pos;
 
     // 机器人状态
     DogState robot_state{DOG_IDEL};

@@ -3,6 +3,8 @@
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/subscription.hpp>
 #include <string>
+#include <fstream>
+#include <chrono>
 
 namespace dog_controller {
 class DogController : public controller_interface::ControllerInterface {
@@ -25,7 +27,14 @@ private:
     rclcpp_lifecycle::LifecycleNode::OnSetParametersCallbackHandle::SharedPtr param_cb_;
 
     robot_interfaces::msg::Robot joints_target;
+    robot_interfaces::msg::Robot joints_state;
 
+    double joint_torque_filter_gate{0.8};
+    double joint_omega_filter_gate{0.8};
     double joint_kp[3],joint_kd[3];
+    std::ofstream csv_file_;
+    bool csv_initialized_;
+    std::chrono::steady_clock::time_point start_time_;
+    int debug_cnt=0;
 };
 } // namespace dog_controller

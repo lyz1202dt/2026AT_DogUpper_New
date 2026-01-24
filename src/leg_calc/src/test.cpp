@@ -11,9 +11,28 @@ public:
     TestMoveNode():  Node("test_move_node")
     {
         // declare parameters so rqt param plugin can modify them
-        this->declare_parameter<double>("vx", 0.0);
-        this->declare_parameter<double>("vy", 0.0);
-        this->declare_parameter<double>("vz", 0.0);
+        auto vx_descriptor = rcl_interfaces::msg::ParameterDescriptor();
+        vx_descriptor.description = "Velocity in X direction";
+        vx_descriptor.floating_point_range.resize(1);
+        vx_descriptor.floating_point_range[0].from_value = -1.0;
+        vx_descriptor.floating_point_range[0].to_value = 1.0;
+        this->declare_parameter<double>("vx", 0.0, vx_descriptor);
+
+        auto vy_descriptor = rcl_interfaces::msg::ParameterDescriptor();
+        vy_descriptor.description = "Velocity in Y direction";
+        vy_descriptor.floating_point_range.resize(1);
+        vy_descriptor.floating_point_range[0].from_value = -1.0;
+        vy_descriptor.floating_point_range[0].to_value = 1.0;
+        this->declare_parameter<double>("vy", 0.0, vy_descriptor);
+
+        auto vz_descriptor = rcl_interfaces::msg::ParameterDescriptor();
+        vz_descriptor.description = "Velocity in Z direction";
+        vz_descriptor.floating_point_range.resize(1);
+        vz_descriptor.floating_point_range[0].from_value = -1.0;
+        vz_descriptor.floating_point_range[0].to_value = 1.0;
+        this->declare_parameter<double>("vz", 0.0, vz_descriptor);
+
+
         this->declare_parameter<int>("step_type", 0);
 
         // create publisher

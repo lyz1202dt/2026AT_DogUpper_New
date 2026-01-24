@@ -49,6 +49,9 @@ add_executable(test_move_node
   src/test.cpp
 )
 
+add_executable(test_pilet_node
+  src/simple_pilet.cpp
+)
 
 target_include_directories(leg_calc
   PUBLIC
@@ -78,12 +81,23 @@ ament_target_dependencies(
 ament_target_dependencies(
   test_move_node
   rclcpp
+  sensor_msgs
+  robot_interfaces
+)
+
+ament_target_dependencies(
+  test_pilet_node
+  rclcpp
+  sensor_msgs
+  tf2
+  tf2_ros
   robot_interfaces
 )
 
 install(TARGETS
 leg_calc
 test_move_node
+test_pilet_node
 DESTINATION lib/${PROJECT_NAME}
 )
 

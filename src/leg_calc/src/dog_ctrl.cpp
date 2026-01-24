@@ -1,10 +1,12 @@
 #include "dog_calc.hpp"
 #include "step.h"
 #include <Eigen/src/Core/Matrix.h>
+#include <algorithm>
 #include <chrono>
 #include <kdl/frames.hpp>
 #include <rclcpp/duration.hpp>
-#include <robot_interfaces/msg/detail/robot__struct.hpp>
+#include <robot_interfaces/msg/robot.hpp>
+#include <sensor_msgs/msg/imu.hpp>
 #include <tuple>
 
 using namespace std::chrono_literals;
@@ -26,24 +28,24 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     rb_y_vmc=std::make_shared<VMC>(160,60,3.0,0.5,0.2,0.1,10ms);
 
 
-    node_->declare_parameter("force_filter_gate", 0.8);
+    node_->declare_parameter("direction_filter_gate", 0.2);
     node_->declare_parameter("enable_vmc", false);
-    node_->declare_parameter("vmc_kp", 500.0);
-    node_->declare_parameter("vmc_kd", 120.0);
-    node_->declare_parameter("vmc_mass", 7.0);
+    node_->declare_parameter("vmc_kp", 300.0);
+    node_->declare_parameter("vmc_kd", 100.0);
+    node_->declare_parameter("vmc_mass", 4.0);
 
-    node_->declare_parameter("lf_grivate", 0.0);
-    node_->declare_parameter("rf_grivate", 0.0);
-    node_->declare_parameter("lb_grivate", 0.0);
-    node_->declare_parameter("rb_grivate", 0.0);
+    node_->declare_parameter("lf_grivate", 15.0);
+    node_->declare_parameter("rf_grivate", 15.0);
+    node_->declare_parameter("lb_grivate", 20.0);
+    node_->declare_parameter("rb_grivate", 20.0);
     node_->declare_parameter("lf_dx", 0.0);
     node_->declare_parameter("rf_dx", 0.0);
-    node_->declare_parameter("lb_dx", 0.0);
-    node_->declare_parameter("rb_dx", 0.0);
+    node_->declare_parameter("lb_dx", -0.05);
+    node_->declare_parameter("rb_dx", -0.05);
 
     node_->declare_parameter("step_support_rate", 0.55);                                        // 支撑相时间
-    node_->declare_parameter("step_time", 1.0);                                                 // 一个完整步态时间
-    node_->declare_parameter("step_height", 0.08);
+    node_->declare_parameter("step_time", 0.7);                                                 // 一个完整步态时间
+    node_->declare_parameter("step_height", 0.12);
     node_->declare_parameter("base_height",0.0);
 
 
@@ -54,8 +56,12 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
         for (const auto& param : params) {
             if (param.get_name() == "enable_vmc")
                 enable_vmc = param.as_bool();
-            else if (param.get_name() == "force_filter_gate")
-                force_filter_gate = param.as_double();
+            else if (param.get_name() == "direction_filter_gate")
+            {
+                direction_filter_gate = param.as_double();
+                direction_filter_gate=std::clamp(direction_filter_gate,0.0,1.0);
+            }
+                
             else if (param.get_name() == "vmc_kp")
             {
                 lf_z_vmc->kp = param.as_double();
@@ -105,6 +111,42 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
         return result;
     });
 
+    // 读取所有默认参数
+    node_->get_parameter("direction_filter_gate", direction_filter_gate);
+    node_->get_parameter("enable_vmc", enable_vmc);
+    node_->get_parameter("vmc_kp", lf_z_vmc->kp);
+    lf_z_vmc->kp = lf_z_vmc->kp;
+    rf_z_vmc->kp = lf_z_vmc->kp;
+    lb_z_vmc->kp = lf_z_vmc->kp;
+    rb_z_vmc->kp = lf_z_vmc->kp;
+    node_->get_parameter("vmc_kd", lf_z_vmc->kd);
+    rf_z_vmc->kd = lf_z_vmc->kd;
+    lb_z_vmc->kd = lf_z_vmc->kd;
+    rb_z_vmc->kd = lf_z_vmc->kd;
+    node_->get_parameter("vmc_mass", lf_z_vmc->mass);
+    rf_z_vmc->mass = lf_z_vmc->mass;
+    lb_z_vmc->mass = lf_z_vmc->mass;
+    rb_z_vmc->mass = lf_z_vmc->mass;
+
+    node_->get_parameter("lf_grivate", robot_lf_grivate);
+    node_->get_parameter("rf_grivate", robot_rf_grivate);
+    node_->get_parameter("lb_grivate", robot_lb_grivate);
+    node_->get_parameter("rb_grivate", robot_rb_grivate);
+    double lf_dx_temp, rf_dx_temp, lb_dx_temp, rb_dx_temp;
+    node_->get_parameter("lf_dx", lf_dx_temp);
+    robot_lf_dx = 0.25 + lf_dx_temp;
+    node_->get_parameter("rf_dx", rf_dx_temp);
+    robot_rf_dx = 0.25 + rf_dx_temp;
+    node_->get_parameter("lb_dx", lb_dx_temp);
+    robot_lb_dx = -0.23 + lb_dx_temp;
+    node_->get_parameter("rb_dx", rb_dx_temp);
+    robot_rb_dx = -0.23 + rb_dx_temp;
+
+    node_->get_parameter("step_support_rate", step_support_rate);
+    node_->get_parameter("step_time", step_time);
+    node_->get_parameter("step_height", step_height);
+    node_->get_parameter("base_height", foot_base_height);
+
     robot_rotation.setRPY(0.0,0.0,0.0);
 
     marker_publisher = node_->create_publisher<visualization_msgs::msg::Marker>("visualization_marker", 10);
@@ -112,6 +154,19 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     rviz_joint_publisher = node_->create_publisher<sensor_msgs::msg::JointState>("joint_states", 10);
 
     legs_target_pub = node_->create_publisher<robot_interfaces::msg::Robot>("legs_target", 10); // 创建期望位置发布者
+
+    imu_sub=node_->create_subscription<sensor_msgs::msg::Imu>("imu",rclcpp::SensorDataQoS(), [this](const sensor_msgs::msg::Imu &msg){
+        //.//RCLCPP_INFO(node_->get_logger(),"posture:%lf,%lf,%lf,%lf",msg.orientation.w,msg.orientation.x,msg.orientation.y,msg.orientation.z);
+        double qw=robot_rotation.getW();
+        double qx=robot_rotation.getX();
+        double qy=robot_rotation.getY();
+        double qz=robot_rotation.getZ();
+        quaternionLowPassFilter(qw,qx,qy,qz,msg.orientation.w,msg.orientation.x,msg.orientation.y,msg.orientation.z,direction_filter_gate);   //(0-强滤波、1-不滤波)
+        robot_rotation.setW(qw);
+        robot_rotation.setX(qx);
+        robot_rotation.setY(qy);
+        robot_rotation.setZ(qz);
+    });
 
     legs_state_sub =
         node_->create_subscription<robot_interfaces::msg::Robot>("legs_status", 10, [this](const robot_interfaces::msg::Robot& msg) {
@@ -131,10 +186,10 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
                 lb_joint_torque[i] = (double)msg.legs[2].joints[i].torque;
                 rb_joint_torque[i] = (double)msg.legs[3].joints[i].torque;
             }
-            robot_rotation.setRPY(0.0, 0.0, 0.0);
-            robot_velocity.angular.x=0.0;
-            robot_velocity.angular.y=0.0;
-            robot_velocity.angular.z=0.0;
+            // robot_rotation.setRPY(0.0, 0.0, 0.0);
+            // robot_velocity.angular.x=0.0;
+            // robot_velocity.angular.y=0.0;
+            // robot_velocity.angular.z=0.0;
             //机器人的线速度需要在别的地方计算
         });
 
@@ -204,6 +259,10 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     ui_update_timer   = node_->create_wall_timer(50ms, std::bind(&RobotCalcNode::show_callback, this));
     legs_update_timer = node_->create_wall_timer(10ms, std::bind(&RobotCalcNode::legs_update, this));
 
+    comm_pos=get_grivate_center_pose(Vector3D(0.0,0.0,0.0), Vector3D(0.0,0.0,0.0), Vector3D(0.0,0.0,0.0), Vector3D(0.0,0.0,0.0));
+    
+
+
     RCLCPP_INFO(node_->get_logger(), "初始化完成");
 }
 
@@ -232,6 +291,44 @@ void RobotCalcNode::show_callback() {
     // dot_marker.color.b = 0.0;
 
     // marker_publisher->publish(dot_marker); // 发布点标记（狗腿足端位置）
+
+
+    // 创建质心可视化标记
+    visualization_msgs::msg::Marker com_marker;
+    com_marker.header.frame_id = "body_link";
+    com_marker.header.stamp = node_->get_clock()->now();
+    com_marker.ns = "center_of_mass";
+    com_marker.id = 1;
+    com_marker.type = visualization_msgs::msg::Marker::SPHERE;
+    com_marker.action = visualization_msgs::msg::Marker::ADD;
+    
+    // 设置质心位置
+    com_marker.pose.position.x = comm_pos[0];
+    com_marker.pose.position.y = comm_pos[1];
+    com_marker.pose.position.z = comm_pos[2];
+    com_marker.pose.orientation.x = 0.0;
+    com_marker.pose.orientation.y = 0.0;
+    com_marker.pose.orientation.z = 0.0;
+    com_marker.pose.orientation.w = 1.0;
+    
+    // 设置球体尺寸
+    com_marker.scale.x = 0.08;
+    com_marker.scale.y = 0.08;
+    com_marker.scale.z = 0.08;
+    
+    // 设置颜色 - 红色表示质心
+    com_marker.color.a = 1.0;
+    com_marker.color.r = 1.0;
+    com_marker.color.g = 0.0;
+    com_marker.color.b = 0.0;
+    
+    com_marker.lifetime = rclcpp::Duration(0, 0);
+    
+    // 发布质心标记
+    marker_publisher->publish(com_marker);
+
+
+
 
     geometry_msgs::msg::TransformStamped t;
     t.header.stamp = node_->get_clock()->now();
@@ -294,18 +391,18 @@ std::tuple<Vector3D, Vector3D, Vector3D> RobotCalcNode::signal_leg_calc(
     std::shared_ptr<LegCalc> leg_calc) {
     Vector3D joint_pos, joint_omega, joint_torque;
 
-    (void)exp_cart_acc;                                        // 目前还没有实现将笛卡尔的加速度转为关节空间的加速度，所以这个参数先不用
 
     int result;
     joint_pos    = leg_calc->joint_pos(exp_cart_pos, &result); // 一般这个位置不可能会迭代失败，所以不再对result进行处理
     joint_omega  = leg_calc->joint_vel(joint_pos, exp_cart_vel);
     joint_torque = leg_calc->joint_torque_foot_force(joint_pos, exp_cart_force);
-    joint_torque += leg_calc->joint_torque_dynamic(joint_pos, joint_omega, Vector3D(0.0, 0.0, 0.0));
+    joint_torque += leg_calc->joint_torque_dynamic(joint_pos, joint_omega, exp_cart_acc);
     return std::make_tuple(joint_pos, joint_omega, joint_torque);
 }
 
 
 void RobotCalcNode::legs_update() {
+    RCLCPP_INFO(node_->get_logger(),"Update...");
     auto lf_foot_exp_pos   = Vector3D(0.0, 0.0, 0.0);
     auto lf_foot_exp_vel   = Vector3D(0.0, 0.0, 0.0);
     auto lf_foot_exp_acc   = Vector3D(0.0, 0.0, 0.0);
@@ -339,14 +436,12 @@ void RobotCalcNode::legs_update() {
 
     if(robot_state==DOG_IDEL)   //单位置控制
     {
-        lf_foot_exp_pos = lf_leg_stop_pos;
-        rf_foot_exp_pos = rf_leg_stop_pos;
-        lb_foot_exp_pos = lb_leg_stop_pos;
-        rb_foot_exp_pos = rb_leg_stop_pos;
-        if(robot_req_state!=DOG_REQ_RUN)
-        {
+        lf_foot_exp_pos = lf_leg_stop_pos=Vector3D(0.0,0.0,0.0);
+        rf_foot_exp_pos = rf_leg_stop_pos=Vector3D(0.0,0.0,0.0);
+        lb_foot_exp_pos = lb_leg_stop_pos=Vector3D(0.0,0.0,0.0);
+        rb_foot_exp_pos = rb_leg_stop_pos=Vector3D(0.0,0.0,0.0);
+        if(robot_req_state==DOG_REQ_STOP)
             robot_state=DOG_STOP;
-        }
     }
     else if (robot_state == DOG_STOP) {                             // 狗保持站立
 
@@ -383,9 +478,10 @@ void RobotCalcNode::legs_update() {
             rb_z_vmc->targetUpdate(0.0, rb_cart_pos[2], 0.0, rb_cart_vel[2], -rb_cart_force[2]);
         rb_foot_exp_force = Vector3D(0.0, 0.0, -robot_rb_grivate);
 
-        if (robot_req_state == DOG_REQ_RUN){                    // 如果请求转移到行走状态，那么机器人状态先跳转到开始行走状态
+        if (robot_req_state == DOG_REQ_RUN)                   // 如果请求转移到行走状态，那么机器人状态先跳转到开始行走状态
             robot_state = DOG_STARTING;
-        }
+        else if(robot_req_state==DOG_REQ_IDEL)
+            robot_state=DOG_IDEL;
     } else if (robot_state == DOG_STARTING) {                  // 狗处于开始前进状态，规划一次初相位轨迹
         auto now                = node_->get_clock()->now();
         main_phrase_start_time  = now;
@@ -424,7 +520,7 @@ void RobotCalcNode::legs_update() {
                 step1_flight_updated  = false;
                 slave_phrase_stop_time =
                     now                                            // 从相位支撑相结束时间等于主相位飞行相结束时间+T*(2*α-1)/2
-                    + rclcpp::Duration(std::chrono::duration<double>(std::abs(2.0 * step_support_rate - 1.0) * step_time));
+                    + rclcpp::Duration(std::chrono::duration<double>(std::abs(2.0 * step_support_rate - 1.0) * step_time*0.5));
                 lf_leg_step.update_support_trajectory(lf_leg_calc->foot_pos(lf_joint_pos), lf_exp_vel, step_support_rate * step_time);
                 // 主相对角腿也需要同步进入支撑相（右后）
                 rb_leg_step.update_support_trajectory(rb_leg_calc->foot_pos(rb_joint_pos), rb_exp_vel, step_support_rate * step_time);
@@ -437,11 +533,11 @@ void RobotCalcNode::legs_update() {
                 step1_support_updated = false;                                       // 设置足端轨迹更新状态
                 step1_flight_updated  = true;
                 lf_leg_step.update_flight_trajectory(
-                    lf_leg_calc->foot_pos(lf_joint_pos),Vector3D(lf_exp_vel[0],lf_exp_vel[1],0.0), lf_exp_vel,
+                    lf_leg_calc->foot_pos(lf_joint_pos),-Vector3D(lf_exp_vel[0],lf_exp_vel[1],0.0), lf_exp_vel,
                     step_time * (1.0 - step_support_rate), step_height);
                 // 主相对角腿也需要规划飞行轨迹（右后）
                 rb_leg_step.update_flight_trajectory(
-                    rb_leg_calc->foot_pos(rb_joint_pos), Vector3D(rb_exp_vel[0],rb_exp_vel[1],0.0), rb_exp_vel,
+                    rb_leg_calc->foot_pos(rb_joint_pos), -Vector3D(rb_exp_vel[0],rb_exp_vel[1],0.0), rb_exp_vel,
                     step_time * (1.0 - step_support_rate), step_height);
                 main_phrase_start_time = now;
                 RCLCPP_INFO(node_->get_logger(), "主相位摆动相规划");
@@ -474,10 +570,10 @@ void RobotCalcNode::legs_update() {
                 step2_flight_updated  = true;
                 // 从相两条腿同时进入飞行相（右前 & 左后）
                 rf_leg_step.update_flight_trajectory(
-                    rf_leg_calc->foot_pos(rf_joint_pos), Vector3D(rf_exp_vel[0],rf_exp_vel[1],0.0), rf_exp_vel,
+                    rf_leg_calc->foot_pos(rf_joint_pos), -Vector3D(rf_exp_vel[0],rf_exp_vel[1],0.0), rf_exp_vel,
                     (1.0 - step_support_rate) * step_time, step_height);
                 lb_leg_step.update_flight_trajectory(
-                    lb_leg_calc->foot_pos(lb_joint_pos), Vector3D(lb_exp_vel[0],lb_exp_vel[1],0.0), lb_exp_vel,
+                    lb_leg_calc->foot_pos(lb_joint_pos), -Vector3D(lb_exp_vel[0],lb_exp_vel[1],0.0), lb_exp_vel,
                     (1.0 - step_support_rate) * step_time, step_height);
                 slave_phrase_start_time = now;
                 RCLCPP_INFO(node_->get_logger(), "从相位摆动相规划");
@@ -555,6 +651,22 @@ void RobotCalcNode::legs_update() {
 
         robot_state = DOG_STOP;
     }
+    else if(robot_state == DOG_CLIMB_STEPS)  //需要登上台阶
+    {
+        //TODO:计算机器人质心位置
+        //TODO:计算质心在水平面上的投影
+        //TODO:根据质心位置计算足端施加力的方向和大小（在地面坐标系下垂直向上，向上的力的大小按照到质心的距离分配）
+        //TODO:执行VMC
+        //TODO:将VMC计算的力转换到机器人坐标系下
+        //TODO:(可选)使用pitch和roll方向简单的PD控制器增加对机器人姿态的控制
+    }
+    else if(robot_state == DOG_CROSS_WALL)  //需要跨过高墙
+    {
+        //TODO:狗子左前褪抬起来，其它三条腿支撑，左前褪搭上高墙
+        //TODO:右前腿搭上高墙
+        //TODO:前面两条腿往后蹬，把狗身往前移
+        //TODO:后腿由后面抬起，经过侧面摆到前面，利用小腿推高墙，进而通过高墙
+    }
 
     auto lf_leg_joints_target = signal_leg_calc(lf_foot_exp_pos, lf_foot_exp_vel, lf_foot_exp_acc, lf_foot_exp_force, lf_leg_calc);
     auto rf_leg_joints_target = signal_leg_calc(rf_foot_exp_pos, rf_foot_exp_vel, rf_foot_exp_acc, rf_foot_exp_force, rf_leg_calc);
@@ -607,10 +719,175 @@ void RobotCalcNode::legs_update() {
         joint_display_msg.position[10] = rb_joint_pos[1];
         joint_display_msg.position[11] = rb_joint_pos[2];
 
-        //  for(int i=0;i<12;i++)   //在RVIZ2中显示期望
-        //      joint_display_msg.position[i]=joints_target.legs[i/3].joints[i%3].rad;
+        // for(int i=0;i<12;i++)   //在RVIZ2中显示期望
+        //     joint_display_msg.position[i]=joints_target.legs[i/3].joints[i%3].rad;
 
         joint_display_msg.header.stamp = node_->get_clock()->now();
         rviz_joint_publisher->publish(joint_display_msg);
+
+
+
+#if 0
+        // 离线模拟、认为关节立即到达发布的目标位置
+        robot_interfaces::msg::Robot msg = joints_target;
+        for (int i = 0; i < 3; i++) {
+            lf_joint_pos[i] = (double)msg.legs[0].joints[i].rad;
+            rf_joint_pos[i] = (double)msg.legs[1].joints[i].rad;
+            lb_joint_pos[i] = (double)msg.legs[2].joints[i].rad;
+            rb_joint_pos[i] = (double)msg.legs[3].joints[i].rad;
+
+            lf_joint_vel[i] = (double)msg.legs[0].joints[i].omega;
+            rf_joint_vel[i] = (double)msg.legs[1].joints[i].omega;
+            lb_joint_vel[i] = (double)msg.legs[2].joints[i].omega;
+            rb_joint_vel[i] = (double)msg.legs[3].joints[i].omega;
+
+            lf_joint_torque[i] = (double)msg.legs[0].joints[i].torque;
+            rf_joint_torque[i] = (double)msg.legs[1].joints[i].torque;
+            lb_joint_torque[i] = (double)msg.legs[2].joints[i].torque;
+            rb_joint_torque[i] = (double)msg.legs[3].joints[i].torque;
+        }
+#endif
     }
+}
+
+
+Vector3D RobotCalcNode::get_grivate_center_pose(const Vector3D& lf_joint_pos, const Vector3D& rf_joint_pos, const Vector3D& lb_joint_pos, const Vector3D& rb_joint_pos) {
+    // 使用 KDL 计算全身质心（在 body_link 坐标系下）
+    // 注意：这里用各 link 的 RigidBodyInertia 来做质量加权平均。
+    //      需要 URDF 中每个 link 都有 inertial 标签，否则质量会为 0。
+
+    auto accumulate_chain_com = [](const KDL::Chain& chain, const Vector3D& q_eigen, double& mass_sum, KDL::Vector& com_sum) {
+        KDL::JntArray q(chain.getNrOfJoints());
+        for (unsigned int i = 0; i < chain.getNrOfJoints() && i < 3; ++i) {
+            q(i) = q_eigen[i];
+        }
+
+        KDL::Frame T = KDL::Frame::Identity();
+
+        unsigned int joint_idx = 0;
+        for (unsigned int seg_idx = 0; seg_idx < chain.getNrOfSegments(); ++seg_idx) {
+            const auto& seg = chain.getSegment(seg_idx);
+
+            // 计算该段末端在基座下的位姿
+            if (seg.getJoint().getType() != KDL::Joint::None) {
+                T = T * seg.pose(q(joint_idx));
+                joint_idx++;
+            } else {
+                T = T * seg.pose(0.0);
+            }
+
+            // 该 segment 的刚体惯量（在 segment 坐标系下）
+            const KDL::RigidBodyInertia& rbi = seg.getInertia();
+            const double m                  = rbi.getMass();
+            if (m <= 0.0) {
+                continue;
+            }
+
+            // COM 在 segment 坐标系下的位置
+            const KDL::Vector c_seg = rbi.getCOG();
+            // 转到基座坐标系
+            const KDL::Vector c_base = T * c_seg;
+
+            mass_sum += m;
+            com_sum  = com_sum + c_base * m;
+        }
+    };
+
+    double mass_sum = 0.0;
+    KDL::Vector com_sum(0.0, 0.0, 0.0);
+
+    // 4 条腿分别从 body_link 到足端 link4；它们共享 body_link，但各自 inertia 不重复（body_link 本体要单独加）
+    accumulate_chain_com(lf_leg_chain, lf_joint_pos, mass_sum, com_sum);
+    accumulate_chain_com(rf_leg_chain, rf_joint_pos, mass_sum, com_sum);
+    accumulate_chain_com(lb_leg_chain, lb_joint_pos, mass_sum, com_sum);
+    accumulate_chain_com(rb_leg_chain, rb_joint_pos, mass_sum, com_sum);
+
+    // 加上 body_link 自身的质量与质心（树中 body_link 是 root，不在各腿 chain 的 segment 中）
+    {
+        const auto it = tree.getSegment("body_link");
+        if (it != tree.getSegments().end()) {
+            const auto body_seg = it->second.segment;
+            const auto& rbi     = body_seg.getInertia();
+            const double m      = rbi.getMass();
+            if (m > 0.0) {
+                mass_sum += m;
+                com_sum  = com_sum + rbi.getCOG() * m; // body_link 在 body_link 坐标系下
+            }
+        }
+    }
+
+    if (mass_sum <= 1e-9) {
+        return Vector3D(0.0, 0.0, 0.0);
+    }
+
+    const KDL::Vector com = com_sum / mass_sum;
+    return Vector3D(com.x(), com.y(), com.z());
+}
+
+
+void RobotCalcNode::quaternionLowPassFilter(
+    double& w,  double& x,  double& y,  double& z,
+    double  w1, double  x1, double  y1, double  z1,
+    double alpha)
+{
+
+    auto normalizeQuaternion=[](double& w, double& x, double& y, double& z){
+        double norm = std::sqrt(w*w + x*x + y*y + z*z);
+    if (norm < 1e-12) {
+        // 退化情况，回到单位四元数
+        w = 1.0; x = y = z = 0.0;
+        return;
+    }
+    w /= norm;
+    x /= norm;
+    y /= norm;
+    z /= norm;
+    };
+
+
+    // 1. 单位化输入（防御性编程）
+    normalizeQuaternion(w,  x,  y,  z);
+    normalizeQuaternion(w1, x1, y1, z1);
+
+    // 2. 点积，判断是否需要取反（双覆盖问题）
+    double dot = w*w1 + x*x1 + y*y1 + z*z1;
+    if (dot < 0.0) {
+        w1 = -w1;
+        x1 = -x1;
+        y1 = -y1;
+        z1 = -z1;
+        dot = -dot;
+    }
+
+    // 3. 小角度近似（避免 acos / sin 数值不稳定）
+    const double DOT_THRESHOLD = 0.9995;
+    if (dot > DOT_THRESHOLD) {
+        // 线性插值
+        w = w + alpha * (w1 - w);
+        x = x + alpha * (x1 - x);
+        y = y + alpha * (y1 - y);
+        z = z + alpha * (z1 - z);
+        normalizeQuaternion(w, x, y, z);
+        return;
+    }
+
+    // 4. 标准 SLERP
+    double theta = std::acos(dot);
+    double sin_theta = std::sin(theta);
+
+    double w_a = std::sin((1.0 - alpha) * theta) / sin_theta;
+    double w_b = std::sin(alpha * theta) / sin_theta;
+
+    double w_new = w_a * w  + w_b * w1;
+    double x_new = w_a * x  + w_b * x1;
+    double y_new = w_a * y  + w_b * y1;
+    double z_new = w_a * z  + w_b * z1;
+
+    w = w_new;
+    x = x_new;
+    y = y_new;
+    z = z_new;
+
+    // 5. 再次单位化（强烈建议保留）
+    normalizeQuaternion(w, x, y, z);
 }
