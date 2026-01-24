@@ -36,7 +36,7 @@
 
     <!-- 加载局部场景模型 -->
     <include>
-      <uri>file:///home/lyz/Project/26_AT_new_dog/install/dog/share/dog/world/scene.world</uri>
+      <uri>file:///home/qpz/2026AT_DogUpper_New/install/dog/share/dog/world/scene.world</uri>
     </include>
 
   </world>
