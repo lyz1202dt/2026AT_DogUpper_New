@@ -402,7 +402,7 @@ std::tuple<Vector3D, Vector3D, Vector3D> RobotCalcNode::signal_leg_calc(
 
 
 void RobotCalcNode::legs_update() {
-    RCLCPP_INFO(node_->get_logger(),"Update...");
+    //RCLCPP_INFO(node_->get_logger(),"Update...");
     auto lf_foot_exp_pos   = Vector3D(0.0, 0.0, 0.0);
     auto lf_foot_exp_vel   = Vector3D(0.0, 0.0, 0.0);
     auto lf_foot_exp_acc   = Vector3D(0.0, 0.0, 0.0);
