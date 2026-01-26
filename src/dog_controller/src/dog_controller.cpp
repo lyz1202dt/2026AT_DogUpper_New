@@ -77,11 +77,11 @@ controller_interface::CallbackReturn DogController::on_configure(const rclcpp_li
     (void)previous_state;
     auto node=get_node();
     joint_kp[0]=node->get_parameter("joint1_kp").as_double();
-    joint_kd[0]=node->get_parameter("joint1_kp").as_double();
+    joint_kd[0]=node->get_parameter("joint1_kd").as_double();
     joint_kp[1]=node->get_parameter("joint2_kp").as_double();
-    joint_kd[1]=node->get_parameter("joint2_kp").as_double();
+    joint_kd[1]=node->get_parameter("joint2_kd").as_double();
     joint_kp[2]=node->get_parameter("joint3_kp").as_double();
-    joint_kd[2]=node->get_parameter("joint3_kp").as_double();
+    joint_kd[2]=node->get_parameter("joint3_kd").as_double();
     return controller_interface::ControllerInterface::CallbackReturn::SUCCESS;
 }
 controller_interface::CallbackReturn DogController::on_activate(const rclcpp_lifecycle::State& previous_state) {
