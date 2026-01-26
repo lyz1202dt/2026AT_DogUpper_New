@@ -17,8 +17,8 @@ def generate_launch_description():
     launch_pack_path=get_package_share_directory("launch_pack")
 
     namespace=""
-    mjcf_file=os.path.join(dog_pack_path,"xml","scene.xml")
-    urdf_file=os.path.join(dog_pack_path,"urdf","dog.urdf")
+    mjcf_file=os.path.join(dog_pack_path,"model","scene.xml")
+    urdf_file=os.path.join(dog_pack_path,"model","dog.urdf")
     controller_config_file=os.path.join(launch_pack_path,"config","ros2_controller.yaml")
 
     # 读取URDF文件内容并作为字符串存储

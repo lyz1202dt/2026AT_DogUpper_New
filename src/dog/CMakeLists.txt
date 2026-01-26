@@ -11,17 +11,10 @@ find_package(ament_cmake REQUIRED)
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 
-install(DIRECTORY xml
+install(DIRECTORY model
   DESTINATION share/${PROJECT_NAME}/
 )
 
-install(DIRECTORY urdf
-  DESTINATION share/${PROJECT_NAME}/
-)
-
-install(DIRECTORY meshes/
-  DESTINATION share/${PROJECT_NAME}/meshes
-)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

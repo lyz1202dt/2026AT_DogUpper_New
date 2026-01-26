@@ -22,12 +22,12 @@ controller_interface::CallbackReturn DogController::on_init() {
     joint_kd[2]=0.0;
 
     auto node=get_node();
-    node->declare_parameter("joint1_kp",50.0);
-    node->declare_parameter("joint1_kd",1.0);
-    node->declare_parameter("joint2_kp",60.0);
-    node->declare_parameter("joint2_kd",1.5);
-    node->declare_parameter("joint3_kp",50.0);
-    node->declare_parameter("joint3_kd",2.0);
+    node->declare_parameter("joint1_kp",30.0);
+    node->declare_parameter("joint1_kd",0.0);
+    node->declare_parameter("joint2_kp",30.0);
+    node->declare_parameter("joint2_kd",0.0);
+    node->declare_parameter("joint3_kp",30.0);
+    node->declare_parameter("joint3_kd",0.0);
     node->declare_parameter("record_lf_torque",false);
     node->declare_parameter("joint_torque_filter_gate",0.8);
     node->declare_parameter("joint_omega_filter_gate",0.8);
@@ -128,7 +128,15 @@ controller_interface::return_type DogController::update(const rclcpp::Time& time
         std::clamp(effort,-12.0,12.0);
         double sum_effort=effort+(double)joints_target.legs[i / 3].joints[i % 3].torque;
         std::clamp(effort,-20.0,20.0);
-        command_interfaces_[i].set_value(sum_effort);
+
+        if(debug_cnt>3000)
+            command_interfaces_[i].set_value(sum_effort);
+        else
+        {
+            command_interfaces_[i].set_value(sum_effort*0.1);
+            debug_cnt++;
+        }
+            
     }
     return controller_interface::return_type::OK;
 }
