@@ -144,7 +144,7 @@ Eigen::Vector3d LegCalc::joint_torque_foot_force(const Eigen::Vector3d &joint_ra
     @param joint_torque 总力矩减去克服重力/科氏力/惯性力剩下的力矩（需要在外部计算）
     @return 笛卡尔坐标系下的足端受力
  */
-Eigen::Vector3d LegCalc::foot_force(const Eigen::Vector3d &joint_rad,const Eigen::Vector3d &joint_torque,const Eigen::Vector3d &forward_force) {
+Eigen::Vector3d LegCalc::foot_force(const Eigen::Vector3d &joint_rad,const Eigen::Vector3d &joint_torque,const Eigen::Vector3d &forward_torque) {
     _temp_joint3_array(0)=joint_rad[0];
     _temp_joint3_array(1)=joint_rad[1];
     _temp_joint3_array(2)=joint_rad[2];
@@ -152,7 +152,7 @@ Eigen::Vector3d LegCalc::foot_force(const Eigen::Vector3d &joint_rad,const Eigen
     jacobain_solver.JntToJac(_temp_joint3_array,temp_jacobain);
     auto jacobian = get_3x3_jacobian_(temp_jacobain);
     
-    return jacobian.transpose().inverse()*(joint_torque-forward_force);
+    return jacobian.transpose().inverse()*(joint_torque-forward_torque);
 }
 
 /**

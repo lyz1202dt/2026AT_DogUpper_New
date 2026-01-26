@@ -9,6 +9,8 @@
 #include <rclcpp/duration.hpp>
 #include <robot_interfaces/msg/robot.hpp>
 #include <sensor_msgs/msg/detail/imu__struct.hpp>
+#include <visualization_msgs/msg/marker.hpp>
+#include <visualization_msgs/msg/marker_array.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <tuple>
 
@@ -37,10 +39,10 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     node_->declare_parameter("vmc_kd", 100.0);
     node_->declare_parameter("vmc_mass", 4.0);
 
-    node_->declare_parameter("lf_grivate", 15.0);
-    node_->declare_parameter("rf_grivate", 15.0);
-    node_->declare_parameter("lb_grivate", 20.0);
-    node_->declare_parameter("rb_grivate", 20.0);
+    node_->declare_parameter("lf_grivate", 8.0);
+    node_->declare_parameter("rf_grivate", 8.0);
+    node_->declare_parameter("lb_grivate", 8.0);
+    node_->declare_parameter("rb_grivate", 8.0);
     node_->declare_parameter("lf_dx", 0.0);
     node_->declare_parameter("rf_dx", 0.0);
     node_->declare_parameter("lb_dx", -0.05);
@@ -152,7 +154,7 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
 
     robot_rotation.setRPY(0.0,0.0,0.0);
 
-    marker_publisher = node_->create_publisher<visualization_msgs::msg::Marker>("visualization_marker", 10);
+    marker_publisher = node_->create_publisher<visualization_msgs::msg::MarkerArray>("visualization_marker_array", 10);
 
     rviz_joint_publisher = node_->create_publisher<sensor_msgs::msg::JointState>("joint_states", 10);
 
@@ -230,6 +232,10 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
                 Vector3D v_rb = v_body + omega.cross(rb_leg_calc->pos_offset);
                 rb_exp_vel    = Vector2D(v_rb[0], v_rb[1]);
             }
+            else if(robot_req_state ==DOG_REQ_IDEL)
+            {
+                robot_req_state=DOG_REQ_IDEL;
+            }
             // RCLCPP_INFO(node_->get_logger(), "接收到期望更新消息:lf:(%lf,%lf),type=%d", lf_exp_vel[0], lf_exp_vel[1], msg.step_mode);
         });
 
@@ -280,31 +286,7 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
 RobotCalcNode::~RobotCalcNode() {}
 
 void RobotCalcNode::show_callback() {
-    // visualization_msgs::msg::Marker dot_marker;
-    // dot_marker.header.frame_id = "body_link"; // 设置坐标系
-    // dot_marker.header.stamp    = node_->get_clock()->now();
-    // dot_marker.ns              = "points";
-    // dot_marker.id              = 0;
-    // dot_marker.type            = visualization_msgs::msg::Marker::SPHERE;
-    // dot_marker.action          = visualization_msgs::msg::Marker::ADD;
 
-    // dot_marker.pose.position.x = lf_leg_calc->pos_offset[0] + lf_cart_target[0];
-    // dot_marker.pose.position.y = lf_leg_calc->pos_offset[1] + lf_cart_target[0];
-    // dot_marker.pose.position.z = lf_leg_calc->pos_offset[2] + lf_cart_target[0];
-    // //  设置球体的尺寸
-    // dot_marker.scale.x = 0.1;
-    // dot_marker.scale.y = 0.1;
-    // dot_marker.scale.z = 0.1;
-    // // 设置颜色
-    // dot_marker.color.a = 1.0;              // 不透明
-    // dot_marker.color.r = 1.0;
-    // dot_marker.color.g = 0.0;
-    // dot_marker.color.b = 0.0;
-
-    // marker_publisher->publish(dot_marker); // 发布点标记（狗腿足端位置）
-
-
-    // 创建质心可视化标记
     visualization_msgs::msg::Marker com_marker;
     com_marker.header.frame_id = "body_link";
     com_marker.header.stamp = node_->get_clock()->now();
@@ -334,66 +316,88 @@ void RobotCalcNode::show_callback() {
     com_marker.color.b = 0.0;
     
     com_marker.lifetime = rclcpp::Duration(0, 0);
+
+
+    const auto now = node_->get_clock()->now();
+
+    visualization_msgs::msg::MarkerArray mark_array;
+
+    auto make_force_arrow =
+        [&](int id,
+            const Vector3D &foot_pos,
+            const Vector3D &pos_offset,
+            const Vector3D &foot_force)
+    {
+        visualization_msgs::msg::Marker m;
+        m.header.frame_id = "body_link";
+        m.header.stamp = now;
+        m.ns = "foot_force";
+        m.id = id;
+        m.type = visualization_msgs::msg::Marker::ARROW;
+        m.action = visualization_msgs::msg::Marker::ADD;
+
+        m.pose.orientation.w = 1.0;
+
+        m.scale.x = 0.02;
+        m.scale.y = 0.04;
+        m.scale.z = 0.06;
+
+
+        geometry_msgs::msg::Point p_start, p_end;
+        p_start.x = foot_pos[0] + pos_offset[0];
+        p_start.y = foot_pos[1] + pos_offset[1];
+        p_start.z = foot_pos[2] + pos_offset[2];
+
+        p_end.x = p_start.x + foot_force[0] * 0.05;
+        p_end.y = p_start.y + foot_force[1] * 0.05;
+        p_end.z = p_start.z + foot_force[2] * 0.05;
+
+        m.points.clear();
+        m.points.push_back(p_start);
+        m.points.push_back(p_end);
+
+        m.color.a = 1.0;
+        m.color.r = 1.0;
+        m.color.g = 1.0;
+        m.color.b = 0.0;
+
+        m.lifetime = rclcpp::Duration(0, 0);
+
+        mark_array.markers.push_back(m);
+    };
+
+    // LF
+    make_force_arrow(
+        0,
+        lf_leg_calc->foot_pos(lf_joint_pos),
+        lf_leg_calc->pos_offset,
+        lf_leg_calc->foot_force(lf_joint_pos, lf_joint_torque, lf_forward_torque));
+
+    // RF
+    make_force_arrow(
+        1,
+        rf_leg_calc->foot_pos(rf_joint_pos),
+        rf_leg_calc->pos_offset,
+        rf_leg_calc->foot_force(rf_joint_pos, rf_joint_torque, rf_forward_torque));
+
+    // LB
+    make_force_arrow(
+        2,
+        lb_leg_calc->foot_pos(lb_joint_pos),
+        lb_leg_calc->pos_offset,
+        lb_leg_calc->foot_force(lb_joint_pos, lb_joint_torque, lb_forward_torque));
+
+    // RB
+    make_force_arrow(
+        3,
+        rb_leg_calc->foot_pos(rb_joint_pos),
+        rb_leg_calc->pos_offset,
+        rb_leg_calc->foot_force(rb_joint_pos, rb_joint_torque, rb_forward_torque));
+
+    mark_array.markers.push_back(com_marker);
     
-    // 发布质心标记
-    marker_publisher->publish(com_marker);
-
-
-
-
-    geometry_msgs::msg::TransformStamped t;
-    t.header.stamp = node_->get_clock()->now();
-    t.header.frame_id = "world";
-    t.child_frame_id = "body_link";
-    t.transform.translation.x = 0.0;
-    t.transform.translation.y = 0.0;
-    t.transform.translation.z = 0.0;
-
-    t.transform.rotation.x = robot_rotation.x();
-    t.transform.rotation.y = robot_rotation.y();
-    t.transform.rotation.z = robot_rotation.z();
-    t.transform.rotation.w = robot_rotation.w();
-
-    robot_tf_broadcaster->sendTransform(t);
-
-
-    visualization_msgs::msg::Marker arraw_marker;
-    arraw_marker.header.frame_id = "body_link"; // 选择你在 TF 树中有的 frame
-    arraw_marker.header.stamp    = node_->get_clock()->now();
-    arraw_marker.ns              = "arrows";
-    arraw_marker.id              = 0;
-    // 类型：箭头
-    arraw_marker.type   = visualization_msgs::msg::Marker::ARROW;
-    arraw_marker.action = visualization_msgs::msg::Marker::ADD;
-
-    auto foot_pos   = rf_leg_calc->foot_pos(rf_joint_pos);
-    auto foot_force = rf_leg_calc->foot_force(rf_joint_pos, rf_joint_torque, rf_forward_torque);
-
-    geometry_msgs::msg::Point p_start, p_end;
-    p_start.x = foot_pos[0] + rf_leg_calc->pos_offset[0];
-    p_start.y = foot_pos[1] + rf_leg_calc->pos_offset[1];
-    p_start.z = foot_pos[2] + rf_leg_calc->pos_offset[2];
-
-    p_end.x = p_start.x + foot_force[0] * 0.05f;
-    p_end.y = p_start.y + foot_force[1] * 0.05f;
-    p_end.z = p_start.z + foot_force[2] * 0.05f;
-
-    arraw_marker.points.push_back(p_start);
-    arraw_marker.points.push_back(p_end);
-
-    arraw_marker.scale.x = 0.03;
-    arraw_marker.scale.y = 0.03;
-    arraw_marker.scale.z = 0.03;
-    // 设置颜色
-    arraw_marker.color.a = 1.0;              // 不透明
-    arraw_marker.color.r = 1.0;
-    arraw_marker.color.g = 1.0;
-    arraw_marker.color.b = 0.0;
-
-    arraw_marker.lifetime = rclcpp::Duration(0, 0);
-
-    marker_publisher->publish(arraw_marker); // 发布箭头标记（狗腿足端受力）*/
-
+    marker_publisher->publish(mark_array);
+    
     // RCLCPP_INFO(node_->get_logger(), "kp=%lf,kd=%lf,mass=%lf", vmc->kp, vmc->kd, vmc->mass);
 }
 
@@ -401,7 +405,6 @@ std::tuple<Vector3D, Vector3D, Vector3D> RobotCalcNode::signal_leg_calc(
     const Vector3D& exp_cart_pos, const Vector3D& exp_cart_vel, const Vector3D& exp_cart_acc, const Vector3D& exp_cart_force,
     std::shared_ptr<LegCalc> leg_calc) {
     Vector3D joint_pos, joint_omega, joint_torque;
-
 
     int result;
     joint_pos    = leg_calc->joint_pos(exp_cart_pos, &result); // 一般这个位置不可能会迭代失败，所以不再对result进行处理
@@ -602,17 +605,23 @@ void RobotCalcNode::legs_update() {
 
         // RCLCPP_INFO(node_->get_logger(),"rf:(%lf,%lf,%lf),success=(%d,%d,%d,%d)",rf_foot_exp_pos[0],rf_foot_exp_pos[1],rf_foot_exp_pos[2],success[0],success[1],success[2],success[3]);
 
+        auto lf_cart_pos   = lf_leg_calc->foot_pos(lf_joint_pos);
+        auto lf_cart_vel   = lf_leg_calc->foot_vel(lf_joint_pos, lf_joint_vel);
+        auto lf_cart_force = lf_leg_calc->foot_force(lf_joint_pos, lf_joint_torque, lf_forward_torque);
+        auto rb_cart_pos   = rb_leg_calc->foot_pos(rb_joint_pos);
+        auto rb_cart_vel   = rb_leg_calc->foot_vel(rb_joint_pos, rb_joint_vel);
+        auto rb_cart_force = rb_leg_calc->foot_force(rb_joint_pos, rb_joint_torque, rb_forward_torque);
+        auto rf_cart_pos   = rf_leg_calc->foot_pos(rf_joint_pos);
+        auto rf_cart_vel   = rf_leg_calc->foot_vel(rf_joint_pos, rf_joint_vel);
+        auto rf_cart_force = rf_leg_calc->foot_force(rf_joint_pos, rf_joint_torque, rf_forward_torque);
+        auto lb_cart_pos   = lb_leg_calc->foot_pos(lb_joint_pos);
+        auto lb_cart_vel   = lb_leg_calc->foot_vel(lb_joint_pos, lb_joint_vel);
+        auto lb_cart_force = lb_leg_calc->foot_force(lb_joint_pos, lb_joint_torque, lb_forward_torque);
+
         if (step1_support_updated) { // 主相位需要VMC计算
-            auto lf_cart_pos   = lf_leg_calc->foot_pos(lf_joint_pos);
-            auto lf_cart_vel   = lf_leg_calc->foot_vel(lf_joint_pos, lf_joint_vel);
-            auto lf_cart_force = lf_leg_calc->foot_force(lf_joint_pos, lf_joint_torque, lf_forward_torque);
             std::tie(lf_foot_exp_pos[2], lf_foot_exp_vel[2], lf_foot_exp_acc[2]) =
                 lf_z_vmc->targetUpdate(lf_foot_exp_pos[2], lf_cart_pos[2], lf_foot_exp_vel[2], lf_cart_vel[2], -lf_cart_force[2]);
 
-            // 主相为左前与右后对角支撑，同时对右后腿使用VMC进行竖直方向的修正
-            auto rb_cart_pos   = rb_leg_calc->foot_pos(rb_joint_pos);
-            auto rb_cart_vel   = rb_leg_calc->foot_vel(rb_joint_pos, rb_joint_vel);
-            auto rb_cart_force = rb_leg_calc->foot_force(rb_joint_pos, rb_joint_torque, rb_forward_torque);
             std::tie(rb_foot_exp_pos[2], rb_foot_exp_vel[2], rb_foot_exp_acc[2]) =
                 rb_z_vmc->targetUpdate(rb_foot_exp_pos[2], rb_cart_pos[2], rb_foot_exp_vel[2], rb_cart_vel[2], -rb_cart_force[2]);
 
@@ -625,17 +634,10 @@ void RobotCalcNode::legs_update() {
             }
         }
         if (step2_support_updated) {     // 从相位需要VMC计算
-            // 从相为右前与左后对角支撑，对右前和左后腿进行竖直方向VMC修正
-            auto rf_cart_pos   = rf_leg_calc->foot_pos(rf_joint_pos);
-            auto rf_cart_vel   = rf_leg_calc->foot_vel(rf_joint_pos, rf_joint_vel);
-            auto rf_cart_force = rf_leg_calc->foot_force(rf_joint_pos, rf_joint_torque, rf_forward_torque);
+            
             std::tie(rf_foot_exp_pos[2], rf_foot_exp_vel[2], rf_foot_exp_acc[2]) =
                 rf_z_vmc->targetUpdate(rf_foot_exp_pos[2], rf_cart_pos[2], rf_foot_exp_vel[2], rf_cart_vel[2], -rf_cart_force[2]);
-
-
-            auto lb_cart_pos   = lb_leg_calc->foot_pos(lb_joint_pos);
-            auto lb_cart_vel   = lb_leg_calc->foot_vel(lb_joint_pos, lb_joint_vel);
-            auto lb_cart_force = lb_leg_calc->foot_force(lb_joint_pos, lb_joint_torque, lb_forward_torque);
+            
             std::tie(lb_foot_exp_pos[2], lb_foot_exp_vel[2], lb_foot_exp_acc[2]) =
                 lb_z_vmc->targetUpdate(lb_foot_exp_pos[2], lb_cart_pos[2], lb_foot_exp_vel[2], lb_cart_vel[2], -lb_cart_force[2]);
 
@@ -647,6 +649,20 @@ void RobotCalcNode::legs_update() {
                 lb_foot_exp_force = Vector3D(0.0, 0.0, -2.0 * robot_lb_grivate);
             }
         }
+
+        //TODO:水平方向VMC
+        // std::tie(lf_foot_exp_pos[0],lf_foot_exp_vel[0],lf_foot_exp_acc[0])=lf_x_vmc->targetUpdate(lf_foot_exp_pos[0], lf_cart_pos[0], lf_foot_exp_vel[0], lf_cart_vel[0], -lf_cart_force[0]);   //实际这个lf_cart_force是足端施加的力，不是受到的力
+        // std::tie(lf_foot_exp_pos[1],lf_foot_exp_vel[1],lf_foot_exp_acc[1])=lf_y_vmc->targetUpdate(lf_foot_exp_pos[1], lf_cart_pos[1], lf_foot_exp_vel[1], lf_cart_vel[1], -lf_cart_force[1]);
+
+        // std::tie(rf_foot_exp_pos[0],rf_foot_exp_vel[0],rf_foot_exp_acc[0])=rf_x_vmc->targetUpdate(rf_foot_exp_pos[0], rf_cart_pos[0], rf_foot_exp_vel[0], rf_cart_vel[0], -rf_cart_force[0]);
+        // std::tie(rf_foot_exp_pos[1],rf_foot_exp_vel[1],rf_foot_exp_acc[1])=rf_y_vmc->targetUpdate(rf_foot_exp_pos[1], rf_cart_pos[1], rf_foot_exp_vel[1], rf_cart_vel[1], -rf_cart_force[1]);
+
+        // std::tie(lb_foot_exp_pos[0],lb_foot_exp_vel[0],lb_foot_exp_acc[0])=lb_x_vmc->targetUpdate(lb_foot_exp_pos[0], lb_cart_pos[0], lb_foot_exp_vel[0], lb_cart_vel[0], -lb_cart_force[0]);
+        // std::tie(lb_foot_exp_pos[1],lb_foot_exp_vel[1],lb_foot_exp_acc[1])=lb_y_vmc->targetUpdate(lb_foot_exp_pos[1], lb_cart_pos[1], lb_foot_exp_vel[1], lb_cart_vel[1], -lb_cart_force[1]);
+
+        // std::tie(rb_foot_exp_pos[0],rb_foot_exp_vel[0],rb_foot_exp_acc[0])=rb_x_vmc->targetUpdate(rb_foot_exp_pos[0], rb_cart_pos[0], rb_foot_exp_vel[0], rb_cart_vel[0], -rb_cart_force[0]);
+        // std::tie(rb_foot_exp_pos[1],rb_foot_exp_vel[1],rb_foot_exp_acc[1])=rb_y_vmc->targetUpdate(rb_foot_exp_pos[1], rb_cart_pos[1], rb_foot_exp_vel[1], rb_cart_vel[1], -rb_cart_force[1]);
+        
     } else if (robot_state == DOG_ENDING) {
         lf_leg_stop_pos = lf_leg_calc->foot_pos(lf_joint_pos);
         rf_leg_stop_pos = rf_leg_calc->foot_pos(rf_joint_pos);
@@ -735,8 +751,6 @@ void RobotCalcNode::legs_update() {
         joint_display_msg.header.stamp = node_->get_clock()->now();
         rviz_joint_publisher->publish(joint_display_msg);
 
-
-
 #if 0
         // 离线模拟、认为关节立即到达发布的目标位置
         robot_interfaces::msg::Robot msg = joints_target;
@@ -758,6 +772,22 @@ void RobotCalcNode::legs_update() {
         }
 #endif
     }
+
+    geometry_msgs::msg::TransformStamped t;
+    t.header.stamp = node_->get_clock()->now();
+    t.header.frame_id = "world";
+    t.child_frame_id = "body_link";
+    t.transform.translation.x = 0.0;
+    t.transform.translation.y = 0.0;
+    t.transform.translation.z = 0.0;
+
+    t.transform.rotation.x = robot_rotation.x();
+    t.transform.rotation.y = robot_rotation.y();
+    t.transform.rotation.z = robot_rotation.z();
+    t.transform.rotation.w = robot_rotation.w();
+
+    robot_tf_broadcaster->sendTransform(t);
+
 }
 
 

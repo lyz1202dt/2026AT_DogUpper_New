@@ -43,7 +43,7 @@ public:
 
     Eigen::Vector3d joint_torque_foot_force(const Eigen::Vector3d &joint_rad,const Eigen::Vector3d &foot_force);    //由足端期望力计算的关节力矩
 
-    Eigen::Vector3d foot_force(const Eigen::Vector3d &joint_rad,const Eigen::Vector3d &joint_torque,const Eigen::Vector3d &forward_force=Vector3D(0.0,0.0,0.0));
+    Eigen::Vector3d foot_force(const Eigen::Vector3d &joint_rad,const Eigen::Vector3d &joint_torque,const Eigen::Vector3d &forward_torque=Vector3D(0.0,0.0,0.0));
 
     Eigen::Vector3d foot_vel(const Eigen::Vector3d &joint_rad, const Eigen::Vector3d &joint_omega);
     
