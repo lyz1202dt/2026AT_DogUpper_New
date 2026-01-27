@@ -35,6 +35,8 @@ private:
     std::ofstream csv_file_;
     bool csv_initialized_;
     std::chrono::steady_clock::time_point start_time_;
+    std::chrono::duration<double> soft_start_duration_{5.0};
+    std::chrono::steady_clock::time_point soft_start_start_time;
     int debug_cnt=0;
 };
 } // namespace dog_controller
