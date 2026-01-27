@@ -86,6 +86,7 @@ controller_interface::CallbackReturn DogController::on_configure(const rclcpp_li
 }
 controller_interface::CallbackReturn DogController::on_activate(const rclcpp_lifecycle::State& previous_state) {
     (void)previous_state;
+    soft_start_start_time = std::chrono::steady_clock::now();
     return controller_interface::ControllerInterface::CallbackReturn::SUCCESS;
 }
 controller_interface::CallbackReturn DogController::on_deactivate(const rclcpp_lifecycle::State& previous_state) {
@@ -117,6 +118,10 @@ controller_interface::return_type DogController::update(const rclcpp::Time& time
         csv_file_.flush();
     }
 
+    auto now = std::chrono::steady_clock::now();
+    double elapsed_s = std::chrono::duration<double>(now - soft_start_start_time).count();
+    double ramp = std::clamp(elapsed_s / soft_start_duration_.count(), 0.0, 1.0);
+
    for (size_t i = 0; i < joints_num; i++) // 将计算结果写入硬件层
     {
         // command_interfaces_[i * 3 + 0].set_value((double)joints_target.legs[i / 3].joints[i % 3].rad);
@@ -125,17 +130,12 @@ controller_interface::return_type DogController::update(const rclcpp::Time& time
         
         double effort=joint_kp[i%3]*(joints_target.legs[i / 3].joints[i % 3].rad-joints_state.legs[i / 3].joints[i % 3].rad)+
                     joint_kd[i%3]*(joints_target.legs[i / 3].joints[i % 3].omega-joints_state.legs[i / 3].joints[i % 3].omega);
-        std::clamp(effort,-12.0,12.0);
+        
+        effort = std::clamp(effort,-12.0,12.0);
         double sum_effort=effort+(double)joints_target.legs[i / 3].joints[i % 3].torque;
-        std::clamp(effort,-20.0,20.0);
+        sum_effort = std::clamp(sum_effort,-20.0,20.0);
 
-        if(debug_cnt>3000)
-            command_interfaces_[i].set_value(sum_effort);
-        else
-        {
-            command_interfaces_[i].set_value(sum_effort*0.1);
-            debug_cnt++;
-        }
+        command_interfaces_[i].set_value(sum_effort * ramp);
             
     }
     return controller_interface::return_type::OK;
