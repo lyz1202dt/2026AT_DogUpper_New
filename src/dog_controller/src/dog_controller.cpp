@@ -22,12 +22,12 @@ controller_interface::CallbackReturn DogController::on_init() {
     joint_kd[2]=0.0;
 
     auto node=get_node();
-    node->declare_parameter("joint1_kp",30.0);
-    node->declare_parameter("joint1_kd",1.0);
-    node->declare_parameter("joint2_kp",30.0);
-    node->declare_parameter("joint2_kd",1.0);
-    node->declare_parameter("joint3_kp",30.0);
-    node->declare_parameter("joint3_kd",1.0);
+    node->declare_parameter("joint1_kp",50.0);
+    node->declare_parameter("joint1_kd",3.0);
+    node->declare_parameter("joint2_kp",50.0);
+    node->declare_parameter("joint2_kd",3.0);
+    node->declare_parameter("joint3_kp",50.0);
+    node->declare_parameter("joint3_kd",3.0);
     node->declare_parameter("record_lf_torque",false);
     node->declare_parameter("joint_torque_filter_gate",0.8);
     node->declare_parameter("joint_omega_filter_gate",0.8);
@@ -102,7 +102,7 @@ controller_interface::return_type DogController::update(const rclcpp::Time& time
     {
         joints_state.legs[i / 3].joints[i % 3].rad    = state_interfaces_[i * 3 + 0].get_value();
         joints_state.legs[i / 3].joints[i % 3].omega  = joint_omega_filter_gate*joints_state.legs[i / 3].joints[i % 3].omega+(1.0-joint_omega_filter_gate)*state_interfaces_[i * 3 + 1].get_value();
-        joints_state.legs[i / 3].joints[i % 3].torque =joint_torque_filter_gate* joints_state.legs[i / 3].joints[i % 3].torque+(1.0-joint_torque_filter_gate)*state_interfaces_[i * 3 + 2].get_value();
+        joints_state.legs[i / 3].joints[i % 3].torque = joint_torque_filter_gate* joints_state.legs[i / 3].joints[i % 3].torque+(1.0-joint_torque_filter_gate)*state_interfaces_[i * 3 + 2].get_value();
     }
     state_publisher->publish(joints_state);    // 发布关节状态
 

@@ -8,6 +8,7 @@
 #include <chrono>
 #include <ctime>
 #include <geometry_msgs/msg/detail/twist__struct.hpp>
+#include <geometry_msgs/msg/detail/vector3__struct.hpp>
 #include <geometry_msgs/msg/point.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <kdl/chain.hpp>
@@ -66,6 +67,7 @@ private:
     void legs_update();
     static void quaternionLowPassFilter(double& w,  double& x,  double& y,  double& z,double  w1, double  x1, double  y1, double  z1,double alpha);
     Vector3D get_grivate_center_pose(const Vector3D &lf_joint_pos,const Vector3D &rf_joint_pos,const Vector3D &lb_joint_pos,const Vector3D &rb_joint_pos);
+    bool get_foot_transfer_target(const tf2::Quaternion quater,Vector3D &pos,Vector3D &vel,Vector3D &acc,Vector3D &force);   //输入相对平面上的期望，返回狗身坐标系下的期望
     rclcpp::Node::SharedPtr node_;
     rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_server_;
 
@@ -74,7 +76,8 @@ private:
     std::shared_ptr<VMC> lb_z_vmc, lb_x_vmc, lb_y_vmc;
     std::shared_ptr<VMC> rb_z_vmc, rb_x_vmc, rb_y_vmc;
 
-    bool enable_vmc{false};
+    std::shared_ptr<SimpleVMC> roll_vmc,pitch_vmc;
+
     double direction_filter_gate{0.8};
     
     rclcpp::TimerBase::SharedPtr ui_update_timer;
@@ -84,6 +87,7 @@ private:
     rclcpp::Subscription<robot_interfaces::msg::Robot>::SharedPtr legs_state_sub;
     rclcpp::Subscription<robot_interfaces::msg::MoveCmd>::SharedPtr move_cmd_sub;
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr imu_sub;
+    rclcpp::Subscription<geometry_msgs::msg::Vector3>::SharedPtr imu_angular_vel_sub;
     rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr rviz_joint_publisher;
     rclcpp::SyncParametersClient::SharedPtr robot_description_param_;
     std::unique_ptr<tf2_ros::TransformBroadcaster> robot_tf_broadcaster;
@@ -109,8 +113,7 @@ private:
 
     double step_time{0.8};  //整个对角步态全程的时间
     double step_height{0.08};
-    double foot_base_height{0.0};
-    double foot_pos_base_offset{-0.25};
+    double body_height{0.25};
     double step_support_rate{0.55};
     rclcpp::Time main_phrase_start_time,slave_phrase_start_time;   //第一、二相位步态开始时间
     rclcpp::Time slave_phrase_stop_time;
@@ -128,6 +131,8 @@ private:
     Eigen::Vector3d rf_forward_torque, rf_joint_torque;
     Eigen::Vector3d lb_forward_torque, lb_joint_torque;
     Eigen::Vector3d rb_forward_torque, rb_joint_torque;
+    double roll_offset_virtual_torque{0.0};
+    double pitch_offset_virtual_torque{0.0};
     int rviz2_update_cnt{0};
 
     Eigen::Vector3d lf_leg_stop_pos,rf_leg_stop_pos,lb_leg_stop_pos,rb_leg_stop_pos;
