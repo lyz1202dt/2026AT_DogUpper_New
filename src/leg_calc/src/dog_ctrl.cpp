@@ -36,21 +36,21 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     rb_y_vmc = std::make_shared<VMC>(160, 60, 3.0, 0.5, 0.2, 0.1, 10ms);
 
     // 狗身平衡VMC
-    roll_vmc  = std::make_shared<SimpleVMC>(-200.0, 0.0);
-    pitch_vmc = std::make_shared<SimpleVMC>(500.0, 100.0);
+    roll_vmc  = std::make_shared<SimpleVMC>(-200.0, 0.0,100);
+    pitch_vmc = std::make_shared<SimpleVMC>(500.0, 100.0,100);
 
     node_->declare_parameter("direction_filter_gate", 0.2);
     node_->declare_parameter("vmc_kp", 200.0);
     node_->declare_parameter("vmc_kd", 120.0);
-    node_->declare_parameter("vmc_mass", 4.0);
+    node_->declare_parameter("vmc_mass", 2.0);
 
     node_->declare_parameter("horizontal_vmc_kp", 160.0);
     node_->declare_parameter("horizontal_vmc_kd", 10.0);
     node_->declare_parameter("horizontal_vmc_mass", 3.0);
 
-    node_->declare_parameter("roll_vmc_kp", 10.0);
-    node_->declare_parameter("roll_vmc_kd", 10.0);
-    node_->declare_parameter("pitch_vmc_kp", 10.0);
+    node_->declare_parameter("roll_vmc_kp", -200.0);
+    node_->declare_parameter("roll_vmc_kd", 0.0);
+    node_->declare_parameter("pitch_vmc_kp", 500.0);
     node_->declare_parameter("pitch_vmc_kd", 10.0);
 
     node_->declare_parameter("lf_grivate", 6.0);
@@ -504,6 +504,8 @@ void RobotCalcNode::legs_update() {
     auto rb_foot_exp_acc   = Vector3D(0.0, 0.0, 0.0);
     auto rb_foot_exp_force = Vector3D(0.0, 0.0, 0.0);
 
+    comm_pos=get_grivate_center_pose(lf_joint_pos, rf_joint_pos, lb_joint_pos, rb_joint_pos);
+
     // 狗腿基本状态更新:
     lf_leg_calc->pos_offset[2] = -body_height; // 更新步态高度
     rf_leg_calc->pos_offset[2] = -body_height;
@@ -728,15 +730,15 @@ void RobotCalcNode::legs_update() {
 
 
 
-            std::tie(lf_foot_exp_pos[0], lf_foot_exp_vel[0], lf_foot_exp_acc[0]) = lf_x_vmc->targetUpdate(
-                lf_foot_exp_pos[0], lf_cart_pos[0], lf_foot_exp_vel[0], lf_cart_vel[0],
-                -lf_cart_force[0]);            // 实际这个lf_cart_force是足端本身要施加的力，不是受到的力
-            std::tie(lf_foot_exp_pos[1], lf_foot_exp_vel[1], lf_foot_exp_acc[1]) =
-                lf_y_vmc->targetUpdate(lf_foot_exp_pos[1], lf_cart_pos[1], lf_foot_exp_vel[1], lf_cart_vel[1], -lf_cart_force[1]);
-            std::tie(rb_foot_exp_pos[0], rb_foot_exp_vel[0], rb_foot_exp_acc[0]) =
-                rb_x_vmc->targetUpdate(rb_foot_exp_pos[0], rb_cart_pos[0], rb_foot_exp_vel[0], rb_cart_vel[0], -rb_cart_force[0]);
-            std::tie(rb_foot_exp_pos[1], rb_foot_exp_vel[1], rb_foot_exp_acc[1]) =
-                rb_y_vmc->targetUpdate(rb_foot_exp_pos[1], rb_cart_pos[1], rb_foot_exp_vel[1], rb_cart_vel[1], -rb_cart_force[1]);
+            // std::tie(lf_foot_exp_pos[0], lf_foot_exp_vel[0], lf_foot_exp_acc[0]) = lf_x_vmc->targetUpdate(
+            //     lf_foot_exp_pos[0], lf_cart_pos[0], lf_foot_exp_vel[0], lf_cart_vel[0],
+            //     -lf_cart_force[0]);            // 实际这个lf_cart_force是足端本身要施加的力，不是受到的力
+            // std::tie(lf_foot_exp_pos[1], lf_foot_exp_vel[1], lf_foot_exp_acc[1]) =
+            //     lf_y_vmc->targetUpdate(lf_foot_exp_pos[1], lf_cart_pos[1], lf_foot_exp_vel[1], lf_cart_vel[1], -lf_cart_force[1]);
+            // std::tie(rb_foot_exp_pos[0], rb_foot_exp_vel[0], rb_foot_exp_acc[0]) =
+            //     rb_x_vmc->targetUpdate(rb_foot_exp_pos[0], rb_cart_pos[0], rb_foot_exp_vel[0], rb_cart_vel[0], -rb_cart_force[0]);
+            // std::tie(rb_foot_exp_pos[1], rb_foot_exp_vel[1], rb_foot_exp_acc[1]) =
+            //     rb_y_vmc->targetUpdate(rb_foot_exp_pos[1], rb_cart_pos[1], rb_foot_exp_vel[1], rb_cart_vel[1], -rb_cart_force[1]);
         }
         if (step2_support_updated) {           // 从相位需要VMC计算
 
@@ -754,14 +756,14 @@ void RobotCalcNode::legs_update() {
                 lb_foot_exp_force += Vector3D(0.0, 0.0, -2.0 * robot_lb_grivate);
             }
 
-            std::tie(rf_foot_exp_pos[0], rf_foot_exp_vel[0], rf_foot_exp_acc[0]) =
-                rf_x_vmc->targetUpdate(rf_foot_exp_pos[0], rf_cart_pos[0], rf_foot_exp_vel[0], rf_cart_vel[0], -rf_cart_force[0]);
-            std::tie(rf_foot_exp_pos[1], rf_foot_exp_vel[1], rf_foot_exp_acc[1]) =
-                rf_y_vmc->targetUpdate(rf_foot_exp_pos[1], rf_cart_pos[1], rf_foot_exp_vel[1], rf_cart_vel[1], -rf_cart_force[1]);
-            std::tie(lb_foot_exp_pos[0], lb_foot_exp_vel[0], lb_foot_exp_acc[0]) =
-                lb_x_vmc->targetUpdate(lb_foot_exp_pos[0], lb_cart_pos[0], lb_foot_exp_vel[0], lb_cart_vel[0], -lb_cart_force[0]);
-            std::tie(lb_foot_exp_pos[1], lb_foot_exp_vel[1], lb_foot_exp_acc[1]) =
-                lb_y_vmc->targetUpdate(lb_foot_exp_pos[1], lb_cart_pos[1], lb_foot_exp_vel[1], lb_cart_vel[1], -lb_cart_force[1]);
+            // std::tie(rf_foot_exp_pos[0], rf_foot_exp_vel[0], rf_foot_exp_acc[0]) =
+            //     rf_x_vmc->targetUpdate(rf_foot_exp_pos[0], rf_cart_pos[0], rf_foot_exp_vel[0], rf_cart_vel[0], -rf_cart_force[0]);
+            // std::tie(rf_foot_exp_pos[1], rf_foot_exp_vel[1], rf_foot_exp_acc[1]) =
+            //     rf_y_vmc->targetUpdate(rf_foot_exp_pos[1], rf_cart_pos[1], rf_foot_exp_vel[1], rf_cart_vel[1], -rf_cart_force[1]);
+            // std::tie(lb_foot_exp_pos[0], lb_foot_exp_vel[0], lb_foot_exp_acc[0]) =
+            //     lb_x_vmc->targetUpdate(lb_foot_exp_pos[0], lb_cart_pos[0], lb_foot_exp_vel[0], lb_cart_vel[0], -lb_cart_force[0]);
+            // std::tie(lb_foot_exp_pos[1], lb_foot_exp_vel[1], lb_foot_exp_acc[1]) =
+            //     lb_y_vmc->targetUpdate(lb_foot_exp_pos[1], lb_cart_pos[1], lb_foot_exp_vel[1], lb_cart_vel[1], -lb_cart_force[1]);
         }
     } else if (robot_state == DOG_ENDING) {
         lf_leg_stop_pos = lf_leg_calc->foot_pos(lf_joint_pos);

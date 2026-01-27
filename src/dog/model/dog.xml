@@ -36,7 +36,7 @@
     <!-- Main body link with mass and inertia -->
     <body name="body_link" pos="0 0 0.5">
       <freejoint/>
-      <inertial pos="6.3455e-05 0.0025357 0.056203" quat="0.999996 -0.000182 0.00272 -5.07e-05" mass="3.0135" diaginertia="0.011761 0.010952 0.0060638"/>
+      <inertial pos="6.3455e-05 0.0025357 0.056203" quat="0.999996 -0.000182 0.00272 -5.07e-05" mass="4.2135" diaginertia="0.011761 0.010952 0.0060638"/>
       <geom type="mesh" rgba="1 1 1 1" mesh="body_link"/>
       <site name="imu" pos="0 0 0.056203" size="0.01"/>
       
