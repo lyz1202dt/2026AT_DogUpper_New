@@ -66,7 +66,7 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     node_->declare_parameter("rb_dx", -0.05);
 
     node_->declare_parameter("step_support_rate", 0.6); // 支撑相时间
-    node_->declare_parameter("step_time", 0.6);         // 一个完整步态时间（0.7共振，0.8太慢容易失衡，最好0.6）
+    node_->declare_parameter("step_time", 0.55);         // 一个完整步态时间（0.7共振，0.8太慢容易失衡，最好0.6）
     node_->declare_parameter("step_height", 0.14);
 
     node_->declare_parameter("target_roll", 0.0);       // 狗子期望的当前俯仰角
@@ -550,6 +550,9 @@ void RobotCalcNode::legs_update() {
     rb_foot_exp_force[1]+= pitch_offset_virtual_torque*std::sin(cur_roll)*roll_balance_force_compen;
 
 
+    if(cur_roll>40*3.14/180||cur_roll<-40*3.14/180||cur_pitch>50*3.14/180||cur_pitch<-50*3.14/180)      //防止机器人倾倒时失控，倾倒时自动切换为位控站立状态
+        robot_state=DOG_IDEL;
+
     if (robot_state == DOG_IDEL)                     // 单位置控制
     {
         lf_foot_exp_pos = lf_leg_stop_pos = Vector3D(0.0, 0.0, 0.0);
@@ -651,8 +654,8 @@ void RobotCalcNode::legs_update() {
                 Vector3D rot_pos_offset=R_mat*vertical_v;
                 rot_pos_offset[2]=0.0;
 
-                // lf_leg_calc->pos_offset=lf_base_offset+rot_pos_offset;      //在规划轨迹前更改足端中性点，不会引起系统冲击
-                // rb_leg_calc->pos_offset=rb_base_offset+rot_pos_offset;
+                // lf_leg_calc->pos_offset=lf_base_offset-rot_pos_offset;      //在规划轨迹前更改足端中性点，不会引起系统冲击
+                // rb_leg_calc->pos_offset=rb_base_offset-rot_pos_offset;
 
                 lf_leg_step.update_support_trajectory(lf_leg_calc->foot_pos(lf_joint_pos), lf_exp_vel, step_support_rate * step_time);
                 // 主相对角腿也需要同步进入支撑相（右后）
@@ -694,8 +697,8 @@ void RobotCalcNode::legs_update() {
                 Vector3D rot_pos_offset=R_mat*vertical_v;
                 rot_pos_offset[2]=0.0;
 
-                // rf_leg_calc->pos_offset=rf_base_offset+rot_pos_offset;      //在规划轨迹前更改足端中性点，不会引起系统冲击
-                // lb_leg_calc->pos_offset=lb_base_offset+rot_pos_offset;
+                // rf_leg_calc->pos_offset=rf_base_offset-rot_pos_offset;      //在规划轨迹前更改足端中性点，不会引起系统冲击
+                // lb_leg_calc->pos_offset=lb_base_offset-rot_pos_offset;
 
 
                 rf_leg_step.update_support_trajectory(
