@@ -28,6 +28,16 @@ typedef struct{
 
 
 
+typedef struct {
+    float X, Y, Z;
+} Vector3D_Typedef;
+
+typedef struct {
+  Vector3D_Typedef AngularVelocity;
+  struct {
+    float Yaw, Pitch, Roll;
+  } Angle;
+} JY61_Typedef;
 
 typedef struct{
     float rad;
@@ -48,7 +58,9 @@ typedef struct{
 typedef struct{
     int pack_type;
     LegState_t leg[4];
+    JY61_Typedef JY61;
 }MotorStatePack_t;
+
 
 
 #pragma pack()

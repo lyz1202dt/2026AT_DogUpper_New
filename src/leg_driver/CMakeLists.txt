@@ -11,8 +11,10 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(robot_interfaces REQUIRED)
-
+find_package(geometry_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 find_package(PkgConfig REQUIRED)
+find_package(tf2 REQUIRED)
 pkg_check_modules(LIBUSB REQUIRED libusb-1.0)
 
 
@@ -63,6 +65,9 @@ target_link_libraries(leg_driver
 
 ament_target_dependencies(leg_driver
   rclcpp
+  geometry_msgs
+  sensor_msgs
+  tf2
   robot_interfaces)
 
 install(TARGETS
