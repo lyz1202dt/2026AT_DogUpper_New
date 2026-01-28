@@ -181,6 +181,13 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
             robot_rotation.setZ(qz);
         });
 
+    imu_angular_vel_sub = node_->create_subscription<geometry_msgs::msg::Vector3>(
+        "/imu_imu_sensor/imu", rclcpp::QoS(rclcpp::KeepLast(10)).reliable().transient_local(),
+        [this](const geometry_msgs::msg::Vector3& msg) {
+            robot_velocity.angular.x = robot_velocity.angular.x + direction_filter_gate * (msg.x - robot_velocity.angular.x);
+            robot_velocity.angular.y = robot_velocity.angular.y + direction_filter_gate * (msg.y - robot_velocity.angular.y);
+            robot_velocity.angular.z = robot_velocity.angular.z + direction_filter_gate * (msg.z - robot_velocity.angular.z);
+        });
     legs_state_sub =
         node_->create_subscription<robot_interfaces::msg::Robot>("legs_status", 10, [this](const robot_interfaces::msg::Robot& msg) {
             for (int i = 0; i < 3; i++) {
