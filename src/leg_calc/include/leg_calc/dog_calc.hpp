@@ -31,7 +31,8 @@
 #include <tf2_ros/transform_broadcaster.h>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <geometry_msgs/msg/twist.hpp>
-#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Matrix3x3.hpp>
+#include <tf2/LinearMath/Quaternion.hpp>
 
 
 
@@ -67,7 +68,9 @@ private:
     void legs_update();
     static void quaternionLowPassFilter(double& w,  double& x,  double& y,  double& z,double  w1, double  x1, double  y1, double  z1,double alpha);
     Vector3D get_grivate_center_pose(const Vector3D &lf_joint_pos,const Vector3D &rf_joint_pos,const Vector3D &lb_joint_pos,const Vector3D &rb_joint_pos);
-    bool get_foot_transfer_target(const tf2::Quaternion quater,Vector3D &pos,Vector3D &vel,Vector3D &acc,Vector3D &force);   //输入相对平面上的期望，返回狗身坐标系下的期望
+    
+    
+
     rclcpp::Node::SharedPtr node_;
     rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_server_;
 
@@ -131,8 +134,11 @@ private:
     Eigen::Vector3d rf_forward_torque, rf_joint_torque;
     Eigen::Vector3d lb_forward_torque, lb_joint_torque;
     Eigen::Vector3d rb_forward_torque, rb_joint_torque;
+    Eigen::Vector3d lf_base_offset,rf_base_offset,lb_base_offset,rb_base_offset;
     double roll_offset_virtual_torque{0.0};
     double pitch_offset_virtual_torque{0.0};
+    double roll_balance_force_compen{0.0};
+    double pitch_balance_force_compen{0.0};
     int rviz2_update_cnt{0};
 
     Eigen::Vector3d lf_leg_stop_pos,rf_leg_stop_pos,lb_leg_stop_pos,rb_leg_stop_pos;
@@ -147,10 +153,6 @@ private:
     double robot_rf_grivate{0.0};
     double robot_lb_grivate{0.0};
     double robot_rb_grivate{0.0};
-    double robot_lf_dx{0.25};
-    double robot_rf_dx{0.25};
-    double robot_lb_dx{-0.23};
-    double robot_rb_dx{-0.23};
     
     tf2::Quaternion robot_rotation;                    //机器人姿态
     geometry_msgs::msg::Twist robot_velocity;          //机器人速度信息
