@@ -29,7 +29,6 @@ private:
 
     std::unique_ptr<CDCTrans> cdc_trans;
     std::unique_ptr<std::thread> usb_event_handle_thread;
-    std::unique_ptr<std::thread> target_send_thread;
     MotorTargetPack_t legs_target;
     rclcpp::Publisher<robot_interfaces::msg::Robot>::SharedPtr robot_pub;
     rclcpp::Subscription<robot_interfaces::msg::Robot>::SharedPtr robot_sub;

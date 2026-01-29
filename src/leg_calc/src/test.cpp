@@ -36,7 +36,7 @@ public:
         this->declare_parameter<int>("step_type", 0);
 
         // create publisher
-        pub_ = this->create_publisher<robot_interfaces::msg::MoveCmd>("robot_move_cmd", 10);
+        pub_ = this->create_publisher<robot_interfaces::msg::MoveCmd>("control/robot_move_cmd", 10);
 
         // set up parameter change callback: publish a new MoveCmd whenever parameters change
         param_cb_handle_ = this->add_on_set_parameters_callback(

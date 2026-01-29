@@ -68,16 +68,18 @@ private:
     void legs_update();
     static void quaternionLowPassFilter(double& w,  double& x,  double& y,  double& z,double  w1, double  x1, double  y1, double  z1,double alpha);
     Vector3D get_grivate_center_pose(const Vector3D &lf_joint_pos,const Vector3D &rf_joint_pos,const Vector3D &lb_joint_pos,const Vector3D &rb_joint_pos);
+
+    void command_and_state_publish(const robot_interfaces::msg::Robot &joints_target);
     
     
 
     rclcpp::Node::SharedPtr node_;
     rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_server_;
 
-    std::shared_ptr<VMC> lf_z_vmc, lf_x_vmc, lf_y_vmc;
-    std::shared_ptr<VMC> rf_z_vmc, rf_x_vmc, rf_y_vmc;
-    std::shared_ptr<VMC> lb_z_vmc, lb_x_vmc, lb_y_vmc;
-    std::shared_ptr<VMC> rb_z_vmc, rb_x_vmc, rb_y_vmc;
+    std::shared_ptr<SimpleVMC> lf_z_vmc, lf_x_vmc, lf_y_vmc;
+    std::shared_ptr<SimpleVMC> rf_z_vmc, rf_x_vmc, rf_y_vmc;
+    std::shared_ptr<SimpleVMC> lb_z_vmc, lb_x_vmc, lb_y_vmc;
+    std::shared_ptr<SimpleVMC> rb_z_vmc, rb_x_vmc, rb_y_vmc;
 
     std::shared_ptr<SimpleVMC> roll_vmc,pitch_vmc;
 
@@ -93,7 +95,6 @@ private:
     rclcpp::Subscription<geometry_msgs::msg::Vector3>::SharedPtr imu_angular_vel_sub;
     rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr rviz_joint_publisher;
     rclcpp::SyncParametersClient::SharedPtr robot_description_param_;
-    rclcpp::Subscription<geometry_msgs::msg::Vector3>::SharedPtr imu_angular_vel_sub;
     std::unique_ptr<tf2_ros::TransformBroadcaster> robot_tf_broadcaster;
 
     std::vector<std::string> joint_names = {"lf_joint1", "lf_joint2", "lf_joint3", "rf_joint1", "rf_joint2", "rf_joint3",
@@ -101,7 +102,6 @@ private:
 
     // 解算部分
     KDL::Tree tree;
-    std::string urdf_xml;
     KDL::Chain lf_leg_chain;
     KDL::Chain rf_leg_chain;
     KDL::Chain lb_leg_chain;
@@ -126,7 +126,7 @@ private:
     bool step1_flight_updated{false};
     bool step2_flight_updated{false};
 
-    // 数据缓存部分
+    //数据缓存部分
     Eigen::Vector3d lf_joint_pos, lf_joint_vel;
     Eigen::Vector3d rf_joint_pos, rf_joint_vel;
     Eigen::Vector3d lb_joint_pos, lb_joint_vel;
@@ -143,7 +143,6 @@ private:
     int rviz2_update_cnt{0};
 
     Eigen::Vector3d lf_leg_stop_pos,rf_leg_stop_pos,lb_leg_stop_pos,rb_leg_stop_pos;
-
     sensor_msgs::msg::JointState joint_display_msg;
     Vector3D comm_pos;
 
@@ -154,6 +153,11 @@ private:
     double robot_rf_grivate{0.0};
     double robot_lb_grivate{0.0};
     double robot_rb_grivate{0.0};
+
+
+    //参数部分
+    double stand_joints_kp[3]{50,50,50};
+    double stand_joints_kd[3]{3.0,3.0,3.0};
     
     tf2::Quaternion robot_rotation;                    //机器人姿态
     geometry_msgs::msg::Twist robot_velocity;          //机器人速度信息

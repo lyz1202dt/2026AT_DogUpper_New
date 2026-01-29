@@ -16,12 +16,6 @@ SerialNode::SerialNode()
     exit_thread = false;
     legs_target.pack_type=0x00;
 
-    this->declare_parameter("joint1_kp", 3.0);
-    this->declare_parameter("joint1_kd", 0.17);
-    this->declare_parameter("joint2_kp", 2.8);
-    this->declare_parameter("joint2_kd", 0.14);
-    this->declare_parameter("joint3_kp", 2.8);
-    this->declare_parameter("joint3_kd", 0.11);
     this->declare_parameter("enable_control",false);
 
         param_server_ =
@@ -30,30 +24,12 @@ SerialNode::SerialNode()
             result.successful = true;
             RCLCPP_INFO(this->get_logger(), "更新PID参数");
             for (const auto& param : params) {
-                if (param.get_name() == "joint1_kp")
-                    joint_kp[0] = param.as_double();
-                else if (param.get_name() == "joint1_kd")
-                    joint_kd[0] = param.as_double();
-                else if (param.get_name() == "joint2_kp")
-                    joint_kp[1] = param.as_double();
-                else if (param.get_name() == "joint2_kd")
-                    joint_kd[1] = param.as_double();
-                else if (param.get_name() == "joint3_kp")
-                    joint_kp[2] = param.as_double();
-                else if (param.get_name() == "joint3_kd")
-                    joint_kd[2] = param.as_double();
-                else if(param.get_name() == "enable_control")
+                if(param.get_name() == "enable_control")
                     enable_control=param.as_bool();
             }
             return result;
         });
 
-    joint_kp[0] = this->get_parameter("joint1_kp").as_double();
-    joint_kd[0] = this->get_parameter("joint1_kd").as_double();
-    joint_kp[1] = this->get_parameter("joint2_kp").as_double();
-    joint_kd[1] = this->get_parameter("joint2_kd").as_double();
-    joint_kp[2] = this->get_parameter("joint3_kp").as_double();
-    joint_kd[2] = this->get_parameter("joint3_kd").as_double();
 
     // 先创建 publisher/subscriber，确保回调中 publish 时 publisher 已就绪
     robot_pub = this->create_publisher<robot_interfaces::msg::Robot>("legs_status", 10);
@@ -85,15 +61,7 @@ SerialNode::SerialNode()
         }while (!exit_thread);
     });
 
-
-    target_send_thread=std::make_unique<std::thread>([this](){
-        do{
-            auto now = std::chrono::system_clock::now();
-            if((!first_update)&&enable_control)
-                cdc_trans->send_struct(legs_target);
-            std::this_thread::sleep_until(now + 8ms);
-        }while (!exit_thread);
-    });
+    RCLCPP_INFO(this->get_logger(),"通信节点初始化完成");
 }
 
 SerialNode::~SerialNode() {
@@ -101,9 +69,6 @@ SerialNode::~SerialNode() {
     exit_thread = true;
     if (usb_event_handle_thread && usb_event_handle_thread->joinable()) {
         usb_event_handle_thread->join();
-    }
-    if(target_send_thread&&target_send_thread->joinable()){
-        target_send_thread->join();
     }
     if (cdc_trans) {
         cdc_trans->close();
@@ -154,13 +119,13 @@ void SerialNode::legsSubscribCb(const robot_interfaces::msg::Robot& msg) {
             legs_target.leg[i].joint[j].rad    = msg.legs[i].joints[j].rad;
             legs_target.leg[i].joint[j].omega  = msg.legs[i].joints[j].omega;
             legs_target.leg[i].joint[j].torque = msg.legs[i].joints[j].torque;
-            legs_target.leg[i].joint[j].kp     = (float)joint_kp[j];
-            legs_target.leg[i].joint[j].kd     = (float)joint_kd[j];
+            legs_target.leg[i].joint[j].kp     = msg.legs[i].joints[j].kp;
+            legs_target.leg[i].joint[j].kd     = msg.legs[i].joints[j].kd;
         }
         legs_target.leg[i].wheel.omega=msg.legs[i].wheel.omega;
         legs_target.leg[i].wheel.torque=msg.legs[i].wheel.torque;
     }
-    //cdc_trans->send_struct(legs_target); // 一旦订阅到最新的包，立即发送到下位机
+    cdc_trans->send_struct(legs_target); // 一旦订阅到最新的包，立即发送到下位机
     target_log_print_cnt++;
     if(target_log_update_cnt==target_log_print_cnt)
     {
