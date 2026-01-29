@@ -47,7 +47,7 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     node_->declare_parameter("vertical_vmc_kd", 13.0);
 
     node_->declare_parameter("horizontal_vmc_kp", 200.0);
-    node_->declare_parameter("horizontal_vmc_kd", 2.0);
+    node_->declare_parameter("horizontal_vmc_kd", 5.0);
 
     node_->declare_parameter("roll_vmc_kp", -60.0);
     node_->declare_parameter("roll_vmc_kd", -4.0);
@@ -351,7 +351,7 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
 
 
     ui_update_timer   = node_->create_wall_timer(50ms, std::bind(&RobotCalcNode::show_callback, this));
-    legs_update_timer = node_->create_wall_timer(10ms, std::bind(&RobotCalcNode::legs_update, this));
+    legs_update_timer = node_->create_wall_timer(4ms, std::bind(&RobotCalcNode::legs_update, this));
 
 
     RCLCPP_INFO(node_->get_logger(), "初始化完成");
