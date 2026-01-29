@@ -22,7 +22,6 @@ SerialNode::SerialNode()
     this->declare_parameter("joint2_kd", 0.14);
     this->declare_parameter("joint3_kp", 2.8);
     this->declare_parameter("joint3_kd", 0.11);
-    this->declare_parameter("enable_control",false);
 
         param_server_ =
         this->add_on_set_parameters_callback([this](const std::vector<rclcpp::Parameter>& params) {
@@ -42,8 +41,6 @@ SerialNode::SerialNode()
                     joint_kp[2] = param.as_double();
                 else if (param.get_name() == "joint3_kd")
                     joint_kd[2] = param.as_double();
-                else if(param.get_name() == "enable_control")
-                    enable_control=param.as_bool();
             }
             return result;
         });
@@ -61,7 +58,6 @@ SerialNode::SerialNode()
     imu_angular_vel_pub=this->create_publisher<geometry_msgs::msg::Vector3>("/imu_imu_sensor/imu",rclcpp::QoS(rclcpp::KeepLast(10)).reliable().transient_local());
     robot_sub = this->create_subscription<robot_interfaces::msg::Robot>(
         "legs_target", 10, std::bind(&SerialNode::legsSubscribCb, this, std::placeholders::_1));
-
 
 
     cdc_trans = std::make_unique<CDCTrans>();                           // 创建CDC传输对象
@@ -84,16 +80,6 @@ SerialNode::SerialNode()
             cdc_trans->process_once();
         }while (!exit_thread);
     });
-
-
-    target_send_thread=std::make_unique<std::thread>([this](){
-        do{
-            auto now = std::chrono::system_clock::now();
-            if((!first_update)&&enable_control)
-                cdc_trans->send_struct(legs_target);
-            std::this_thread::sleep_until(now + 8ms);
-        }while (!exit_thread);
-    });
 }
 
 SerialNode::~SerialNode() {
@@ -101,9 +87,6 @@ SerialNode::~SerialNode() {
     exit_thread = true;
     if (usb_event_handle_thread && usb_event_handle_thread->joinable()) {
         usb_event_handle_thread->join();
-    }
-    if(target_send_thread&&target_send_thread->joinable()){
-        target_send_thread->join();
     }
     if (cdc_trans) {
         cdc_trans->close();
@@ -160,7 +143,10 @@ void SerialNode::legsSubscribCb(const robot_interfaces::msg::Robot& msg) {
         legs_target.leg[i].wheel.omega=msg.legs[i].wheel.omega;
         legs_target.leg[i].wheel.torque=msg.legs[i].wheel.torque;
     }
-    //cdc_trans->send_struct(legs_target); // 一旦订阅到最新的包，立即发送到下位机
+
+    if(enable_control)
+        cdc_trans->send_struct(legs_target); // 一旦订阅到最新的包，立即发送到下位机
+
     target_log_print_cnt++;
     if(target_log_update_cnt==target_log_print_cnt)
     {

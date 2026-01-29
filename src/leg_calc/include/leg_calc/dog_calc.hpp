@@ -42,7 +42,7 @@ public:
     ~RobotCalcNode();
 
 
-    enum DogState {                // 机器人状态机
+    enum DogState {                //机器人状态机
         DOG_IDEL,
         DOG_STOP,
         DOG_STARTING,
@@ -50,7 +50,8 @@ public:
         DOG_ENDING,
 
         DOG_CLIMB_STEPS,   //登上台阶
-        DOG_CROSS_WALL     //跨越墙体任务
+        DOG_CROSS_WALL,     //跨越墙体任务
+        DOG_SETUP
     };
 
     enum DogReqState{  //请求的机器人状态
@@ -147,13 +148,21 @@ private:
     Vector3D comm_pos;
 
     // 机器人状态
-    DogState robot_state{DOG_IDEL};
+    DogState robot_state{DOG_SETUP};
     DogReqState robot_req_state{DOG_REQ_IDEL}; //请求的机器人状态
     double robot_lf_grivate{0.0};
     double robot_rf_grivate{0.0};
     double robot_lb_grivate{0.0};
     double robot_rb_grivate{0.0};
     
+
     tf2::Quaternion robot_rotation;                    //机器人姿态
     geometry_msgs::msg::Twist robot_velocity;          //机器人速度信息
+
+
+
+    //启动过程
+    bool legs_state_updated{false};
+    bool setup_trajectory_calced{false};
+    rclcpp::Time setup_time;
 };
