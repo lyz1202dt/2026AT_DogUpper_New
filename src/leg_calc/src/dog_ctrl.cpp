@@ -56,10 +56,10 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     node_->declare_parameter("roll_balance_force_compen", 1.0);
     node_->declare_parameter("pitch_balance_force_compen", 1.0);
 
-    node_->declare_parameter("lf_grivate", 6.0);
-    node_->declare_parameter("rf_grivate", 6.0);
-    node_->declare_parameter("lb_grivate", 7.0);
-    node_->declare_parameter("rb_grivate", 7.0);
+    node_->declare_parameter("lf_grivate", 20.0);
+    node_->declare_parameter("rf_grivate", 20.0);
+    node_->declare_parameter("lb_grivate", 25.0);
+    node_->declare_parameter("rb_grivate", 25.0);
     node_->declare_parameter("lf_dx", 0.0);
     node_->declare_parameter("rf_dx", 0.0);
     node_->declare_parameter("lb_dx", -0.05);
