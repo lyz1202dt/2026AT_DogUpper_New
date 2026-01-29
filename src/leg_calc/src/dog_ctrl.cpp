@@ -24,19 +24,19 @@ using namespace std::chrono_literals;
 
 RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     node_    = node;
-    lf_z_vmc = std::make_shared<SimpleVMC>(500, 120, 4.0);
-    rf_z_vmc = std::make_shared<SimpleVMC>(500, 120, 4.0);
-    lb_z_vmc = std::make_shared<SimpleVMC>(500, 120, 4.0);
-    rb_z_vmc = std::make_shared<SimpleVMC>(500, 120, 4.0);
+    lf_z_vmc = std::make_shared<SimpleVMC>(500, 120, 40.0);
+    rf_z_vmc = std::make_shared<SimpleVMC>(500, 120, 40.0);
+    lb_z_vmc = std::make_shared<SimpleVMC>(500, 120, 40.0);
+    rb_z_vmc = std::make_shared<SimpleVMC>(500, 120, 40.0);
 
-    lf_x_vmc = std::make_shared<SimpleVMC>(160, 60, 3.0);
-    lf_y_vmc = std::make_shared<SimpleVMC>(160, 60, 3.0);
-    rf_x_vmc = std::make_shared<SimpleVMC>(160, 60, 3.0);
-    rf_y_vmc = std::make_shared<SimpleVMC>(160, 60, 3.0);
-    lb_x_vmc = std::make_shared<SimpleVMC>(160, 60, 3.0);
-    lb_y_vmc = std::make_shared<SimpleVMC>(160, 60, 3.0);
-    rb_x_vmc = std::make_shared<SimpleVMC>(160, 60, 3.0);
-    rb_y_vmc = std::make_shared<SimpleVMC>(160, 60, 3.0);
+    lf_x_vmc = std::make_shared<SimpleVMC>(160, 60, 20.0);
+    lf_y_vmc = std::make_shared<SimpleVMC>(160, 60, 20.0);
+    rf_x_vmc = std::make_shared<SimpleVMC>(160, 60, 20.0);
+    rf_y_vmc = std::make_shared<SimpleVMC>(160, 60, 20.0);
+    lb_x_vmc = std::make_shared<SimpleVMC>(160, 60, 20.0);
+    lb_y_vmc = std::make_shared<SimpleVMC>(160, 60, 20.0);
+    rb_x_vmc = std::make_shared<SimpleVMC>(160, 60, 20.0);
+    rb_y_vmc = std::make_shared<SimpleVMC>(160, 60, 20.0);
 
     // 狗身平衡VMC
     roll_vmc  = std::make_shared<SimpleVMC>(-200.0, 0.0, 100);
@@ -44,26 +44,22 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
 
     node_->declare_parameter("direction_filter_gate", 0.2);
     node_->declare_parameter("vertical_vmc_kp", 200.0);
-    node_->declare_parameter("vertical_vmc_kd", 120.0);
+    node_->declare_parameter("vertical_vmc_kd", 13.0);
 
-    node_->declare_parameter("horizontal_vmc_kp", 500.0);
-    node_->declare_parameter("horizontal_vmc_kd", 200.0);
+    node_->declare_parameter("horizontal_vmc_kp", 200.0);
+    node_->declare_parameter("horizontal_vmc_kd", 2.0);
 
-    node_->declare_parameter("roll_vmc_kp", -200.0);
-    node_->declare_parameter("roll_vmc_kd", -20.0);
-    node_->declare_parameter("pitch_vmc_kp", 500.0);
-    node_->declare_parameter("pitch_vmc_kd", 50.0);
+    node_->declare_parameter("roll_vmc_kp", -60.0);
+    node_->declare_parameter("roll_vmc_kd", -4.0);
+    node_->declare_parameter("pitch_vmc_kp", 100.0);
+    node_->declare_parameter("pitch_vmc_kd", 5.0);
     node_->declare_parameter("roll_balance_force_compen", 1.0);
     node_->declare_parameter("pitch_balance_force_compen", 1.0);
 
-    node_->declare_parameter("lf_grivate", 6.0);
-    node_->declare_parameter("rf_grivate", 6.0);
-    node_->declare_parameter("lb_grivate", 7.0);
-    node_->declare_parameter("rb_grivate", 7.0);
     node_->declare_parameter("lf_dx", 0.0);
     node_->declare_parameter("rf_dx", 0.0);
-    node_->declare_parameter("lb_dx", -0.05);
-    node_->declare_parameter("rb_dx", -0.05);
+    node_->declare_parameter("lb_dx", 0.0);
+    node_->declare_parameter("rb_dx", 0.0);
 
     node_->declare_parameter("step_support_rate", 0.6); // 支撑相时间
     node_->declare_parameter("step_time", 0.6);         // 一个完整步态时间（0.7共振，0.8太慢容易失衡，最好0.6）
@@ -147,15 +143,7 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
                 stand_joints_kp[2]=param.as_double();
             }else if(name=="joint3_kd"){
                 stand_joints_kd[2]=param.as_double();
-            }else if (name == "lf_grivate")
-                robot_lf_grivate = param.as_double();
-            else if (name == "rf_grivate")
-                robot_rf_grivate = param.as_double();
-            else if (name == "lb_grivate")
-                robot_lb_grivate = param.as_double();
-            else if (name == "rb_grivate")
-                robot_rb_grivate = param.as_double();
-            else if (name == "lf_dx")
+            }else if (name == "lf_dx")
                 lf_base_offset[0] = 0.25 + param.as_double();
             else if (name == "rf_dx")
                 rf_base_offset[0] = 0.25 + param.as_double();
@@ -208,18 +196,12 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     pitch_vmc->kp = node_->get_parameter("pitch_vmc_kp").as_double();
     pitch_vmc->kd = node_->get_parameter("pitch_vmc_kd").as_double();
 
-    // ========== leg gravity ==========
-    robot_lf_grivate = node_->get_parameter("lf_grivate").as_double();
-    robot_rf_grivate = node_->get_parameter("rf_grivate").as_double();
-    robot_lb_grivate = node_->get_parameter("lb_grivate").as_double();
-    robot_rb_grivate = node_->get_parameter("rb_grivate").as_double();
-
     // ========== foot x offset ==========
 
     lf_base_offset[0] = 0.25 + node_->get_parameter("lf_dx").as_double();
     rf_base_offset[0] = 0.25 + node_->get_parameter("rf_dx").as_double();
-    lb_base_offset[0] = -0.23 + node_->get_parameter("lb_dx").as_double();
-    rb_base_offset[0] = -0.23 + node_->get_parameter("rb_dx").as_double();
+    lb_base_offset[0] = -0.25 + node_->get_parameter("lb_dx").as_double();
+    rb_base_offset[0] = -0.25 + node_->get_parameter("rb_dx").as_double();
 
     // ========== gait ==========
     step_support_rate = node_->get_parameter("step_support_rate").as_double();
@@ -289,7 +271,6 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
                 rf_joint_torque[i] = (double)msg.legs[1].joints[i].torque;
                 lb_joint_torque[i] = (double)msg.legs[2].joints[i].torque;
                 rb_joint_torque[i] = (double)msg.legs[3].joints[i].torque;
-                RCLCPP_INFO(node_->get_logger(),"力矩%lf",msg.legs[0].joints[i].torque);
             }
         });
 
@@ -582,62 +563,125 @@ void RobotCalcNode::legs_update() {
         command_and_state_publish(joints_target); // 发送
         return;
     } else if (robot_state == DOG_STOP) {         // 狗保持站立（纯力控）
+        // 获取足端位置和速度
         auto lf_foot_cart_pos = lf_leg_calc->foot_pos(lf_joint_pos);
         auto lf_foot_cart_vel = lf_leg_calc->foot_vel(lf_joint_pos, lf_joint_vel);
-        double lf_vmc_z_force = lf_z_vmc->update(lf_foot_cart_pos[2], lf_foot_cart_vel[2]);
-
-        double lf_vmc_x_force = lf_x_vmc->update(lf_foot_cart_pos[0], lf_foot_cart_vel[0]);
-        double lf_vmc_y_force = lf_y_vmc->update(lf_foot_cart_pos[1], lf_foot_cart_vel[1]);
-        auto lf_cart_force    = Vector3D(lf_vmc_x_force, lf_vmc_y_force, -robot_lf_grivate + lf_vmc_z_force);
-        
-
         auto rf_foot_cart_pos = rf_leg_calc->foot_pos(rf_joint_pos);
         auto rf_foot_cart_vel = rf_leg_calc->foot_vel(rf_joint_pos, rf_joint_vel);
-        double rf_vmc_z_force = rf_z_vmc->update(rf_foot_cart_pos[2], rf_foot_cart_vel[2]);
-        double rf_vmc_x_force = rf_x_vmc->update(rf_foot_cart_pos[0], rf_foot_cart_vel[0]);
-        double rf_vmc_y_force = rf_y_vmc->update(rf_foot_cart_pos[1], rf_foot_cart_vel[1]);
-        auto rf_cart_force    = Vector3D(rf_vmc_x_force, rf_vmc_y_force, -robot_rf_grivate + rf_vmc_z_force);
-
         auto lb_foot_cart_pos = lb_leg_calc->foot_pos(lb_joint_pos);
         auto lb_foot_cart_vel = lb_leg_calc->foot_vel(lb_joint_pos, lb_joint_vel);
-        double lb_vmc_z_force = lb_z_vmc->update(lb_foot_cart_pos[2], lb_foot_cart_vel[2]);
-        double lb_vmc_x_force = lb_x_vmc->update(lb_foot_cart_pos[0], lb_foot_cart_vel[0]);
-        double lb_vmc_y_force = lb_y_vmc->update(lb_foot_cart_pos[1], lb_foot_cart_vel[1]);
-        auto lb_cart_force    = Vector3D(lb_vmc_x_force, lb_vmc_y_force, -robot_lb_grivate + lb_vmc_z_force);
-
         auto rb_foot_cart_pos = rb_leg_calc->foot_pos(rb_joint_pos);
         auto rb_foot_cart_vel = rb_leg_calc->foot_vel(rb_joint_pos, rb_joint_vel);
-        double rb_vmc_z_force = rb_z_vmc->update(rb_foot_cart_pos[2], rb_foot_cart_vel[2]);
+
+        // 计算水平方向的 VMC 力
+        double lf_vmc_x_force = lf_x_vmc->update(lf_foot_cart_pos[0], lf_foot_cart_vel[0]);
+        double lf_vmc_y_force = lf_y_vmc->update(lf_foot_cart_pos[1], lf_foot_cart_vel[1]);
+        double rf_vmc_x_force = rf_x_vmc->update(rf_foot_cart_pos[0], rf_foot_cart_vel[0]);
+        double rf_vmc_y_force = rf_y_vmc->update(rf_foot_cart_pos[1], rf_foot_cart_vel[1]);
+        double lb_vmc_x_force = lb_x_vmc->update(lb_foot_cart_pos[0], lb_foot_cart_vel[0]);
+        double lb_vmc_y_force = lb_y_vmc->update(lb_foot_cart_pos[1], lb_foot_cart_vel[1]);
         double rb_vmc_x_force = rb_x_vmc->update(rb_foot_cart_pos[0], rb_foot_cart_vel[0]);
         double rb_vmc_y_force = rb_y_vmc->update(rb_foot_cart_pos[1], rb_foot_cart_vel[1]);
-        auto rb_cart_force    = Vector3D(rb_vmc_x_force, rb_vmc_y_force, -robot_rb_grivate + rb_vmc_z_force);
 
-        // double cur_roll, cur_pitch, cur_yaw;
-        // tf2::Matrix3x3(robot_rotation).getRPY(cur_roll, cur_pitch, cur_yaw);
+        // 计算竖直方向的 VMC 力
+        double lf_vmc_z_force = lf_z_vmc->update(lf_foot_cart_pos[2], lf_foot_cart_vel[2]);
+        double rf_vmc_z_force = rf_z_vmc->update(rf_foot_cart_pos[2], rf_foot_cart_vel[2]);
+        double lb_vmc_z_force = lb_z_vmc->update(lb_foot_cart_pos[2], lb_foot_cart_vel[2]);
+        double rb_vmc_z_force = rb_z_vmc->update(rb_foot_cart_pos[2], rb_foot_cart_vel[2]);
 
-        // roll_offset_virtual_torque  = roll_vmc->update(cur_roll, robot_velocity.angular.x);
-        // pitch_offset_virtual_torque = pitch_vmc->update(cur_pitch, robot_velocity.angular.y);
+        RCLCPP_INFO(node_->get_logger(),"VMC:%lf",lf_vmc_z_force);
 
-        // lf_cart_force[2] += pitch_offset_virtual_torque * lf_leg_calc->pos_offset[0];
-        // rf_cart_force[2] += pitch_offset_virtual_torque * rf_leg_calc->pos_offset[0];
-        // lb_cart_force[2] += pitch_offset_virtual_torque * lb_leg_calc->pos_offset[0];
-        // rb_cart_force[2] += pitch_offset_virtual_torque * rb_leg_calc->pos_offset[0];
+        // 使用 CompleteOrthogonalDecomposition 计算克服重力所需的足端力
+        // 计算机器人总质量
+        double total_mass = 0.0;
+        auto accumulate_mass = [&total_mass](const KDL::Chain& chain) {
+            for (unsigned int i = 0; i < chain.getNrOfSegments(); ++i) {
+                total_mass += chain.getSegment(i).getInertia().getMass();
+            }
+        };
+        accumulate_mass(lf_leg_chain);
+        accumulate_mass(rf_leg_chain);
+        accumulate_mass(lb_leg_chain);
+        accumulate_mass(rb_leg_chain);
+        
+        // 加上 body_link 质量
+        const auto it = tree.getSegment("body_link");
+        if (it != tree.getSegments().end()) {
+            total_mass += it->second.segment.getInertia().getMass();
+        }
 
-        // lf_cart_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
-        // rf_cart_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
-        // lb_cart_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
-        // rb_cart_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
+        // 构建约束矩阵求解四足端力
+        // 约束：力平衡 + 力矩平衡（相对于质心）
+        // f_lf_z + f_rf_z + f_lb_z + f_rb_z = m * g
+        // (r_lf - r_com) × [0, 0, f_lf_z] + ... = 0
+        
+        Eigen::Matrix<double, 3, 4> A;
+        Eigen::Vector3d b;
+        
+        // 力平衡约束（Z方向）
+        A(0, 0) = 1.0;  // lf
+        A(0, 1) = 1.0;  // rf
+        A(0, 2) = 1.0;  // lb
+        A(0, 3) = 1.0;  // rb
+        b(0) = total_mass * 9.81;
+        
+        // 力矩平衡约束（X轴 - 由Y方向位置和Z方向力产生）
+        Vector3D lf_foot_pos_global = lf_foot_cart_pos + lf_leg_calc->pos_offset;
+        Vector3D rf_foot_pos_global = rf_foot_cart_pos + rf_leg_calc->pos_offset;
+        Vector3D lb_foot_pos_global = lb_foot_cart_pos + lb_leg_calc->pos_offset;
+        Vector3D rb_foot_pos_global = rb_foot_cart_pos + rb_leg_calc->pos_offset;
+        
+        A(1, 0) = lf_foot_pos_global[1] - comm_pos[1];  // lf
+        A(1, 1) = rf_foot_pos_global[1] - comm_pos[1];  // rf
+        A(1, 2) = lb_foot_pos_global[1] - comm_pos[1];  // lb
+        A(1, 3) = rb_foot_pos_global[1] - comm_pos[1];  // rb
+        b(1) = 0.0;
+        
+        // 力矩平衡约束（Y轴 - 由X方向位置和Z方向力产生，注意符号）
+        A(2, 0) = -(lf_foot_pos_global[0] - comm_pos[0]);  // lf
+        A(2, 1) = -(rf_foot_pos_global[0] - comm_pos[0]);  // rf
+        A(2, 2) = -(lb_foot_pos_global[0] - comm_pos[0]);  // lb
+        A(2, 3) = -(rb_foot_pos_global[0] - comm_pos[0]);  // rb
+        b(2) = 0.0;
+        
+        // 使用 CompleteOrthogonalDecomposition 求解
+        Eigen::CompleteOrthogonalDecomposition<Eigen::Matrix<double, 3, 4>> cod(A);
+        Eigen::Vector4d gravity_forces = cod.solve(b);
+        
+        // 构建笛卡尔空间的足端力
+        auto lf_cart_force = Vector3D(lf_vmc_x_force, lf_vmc_y_force, -gravity_forces(0) + lf_vmc_z_force);
+        auto rf_cart_force = Vector3D(rf_vmc_x_force, rf_vmc_y_force, -gravity_forces(1) + rf_vmc_z_force);
+        auto lb_cart_force = Vector3D(lb_vmc_x_force, lb_vmc_y_force, -gravity_forces(2) + lb_vmc_z_force);
+        auto rb_cart_force = Vector3D(rb_vmc_x_force, rb_vmc_y_force, -gravity_forces(3) + rb_vmc_z_force);
 
-        // // TODO:计算四个足端的期望的平衡力
-        // lf_cart_force[2] += roll_offset_virtual_torque * lf_leg_calc->pos_offset[1];
-        // rf_cart_force[2] += roll_offset_virtual_torque * rf_leg_calc->pos_offset[1];
-        // lb_cart_force[2] += roll_offset_virtual_torque * lb_leg_calc->pos_offset[1];
-        // rb_cart_force[2] += roll_offset_virtual_torque * rb_leg_calc->pos_offset[1];
 
-        // lf_cart_force[1] += pitch_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
-        // rf_cart_force[1] += pitch_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
-        // lb_cart_force[1] += pitch_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
-        // rb_cart_force[1] += pitch_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
+        //平衡控制
+        double cur_roll, cur_pitch, cur_yaw;
+        tf2::Matrix3x3(robot_rotation).getRPY(cur_roll, cur_pitch, cur_yaw);
+
+        roll_offset_virtual_torque  = roll_vmc->update(cur_roll, robot_velocity.angular.x);
+        pitch_offset_virtual_torque = pitch_vmc->update(cur_pitch, robot_velocity.angular.y);
+
+        lf_cart_force[2] += pitch_offset_virtual_torque * lf_leg_calc->pos_offset[0];
+        rf_cart_force[2] += pitch_offset_virtual_torque * rf_leg_calc->pos_offset[0];
+        lb_cart_force[2] += pitch_offset_virtual_torque * lb_leg_calc->pos_offset[0];
+        rb_cart_force[2] += pitch_offset_virtual_torque * rb_leg_calc->pos_offset[0];
+
+        lf_cart_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
+        rf_cart_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
+        lb_cart_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
+        rb_cart_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
+
+        // TODO:计算四个足端的期望的平衡力
+        lf_cart_force[2] += roll_offset_virtual_torque * lf_leg_calc->pos_offset[1];
+        rf_cart_force[2] += roll_offset_virtual_torque * rf_leg_calc->pos_offset[1];
+        lb_cart_force[2] += roll_offset_virtual_torque * lb_leg_calc->pos_offset[1];
+        rb_cart_force[2] += roll_offset_virtual_torque * rb_leg_calc->pos_offset[1];
+
+        lf_cart_force[1] += pitch_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
+        rf_cart_force[1] += pitch_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
+        lb_cart_force[1] += pitch_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
+        rb_cart_force[1] += pitch_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
 
 
         Vector3D legs_motor_torque[4];
@@ -658,7 +702,7 @@ void RobotCalcNode::legs_update() {
         {
             robot_state = DOG_IDEL;
         }
-            
+        
         command_and_state_publish(joints_target);
         return;
     }/*else if (robot_state == DOG_STARTING) { // 狗处于开始前进状态，规划一次初相位轨迹

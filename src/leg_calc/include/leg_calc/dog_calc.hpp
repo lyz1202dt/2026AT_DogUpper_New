@@ -149,11 +149,6 @@ private:
     // 机器人状态
     DogState robot_state{DOG_IDEL};
     DogReqState robot_req_state{DOG_REQ_IDEL}; //请求的机器人状态
-    double robot_lf_grivate{0.0};
-    double robot_rf_grivate{0.0};
-    double robot_lb_grivate{0.0};
-    double robot_rb_grivate{0.0};
-
 
     //参数部分
     double stand_joints_kp[3]{50,50,50};
