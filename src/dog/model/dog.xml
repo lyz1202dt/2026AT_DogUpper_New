@@ -82,7 +82,7 @@
         <geom type="mesh" rgba="1 1 1 1" mesh="lb_link2"/>
         <body name="lb_link3" pos="0.23001 0 0.0935" quat="0.707105 0 0 -0.707108">
           <inertial pos="0.050693 -0.0103779 0.0815839" quat="0.68722 -0.151926 -0.217761 0.676186" mass="0.198135" diaginertia="0.00480061 0.00446106 0.000385922"/>
-          <joint name="lb_joint3" pos="0 0 0" axis="0 0 -1" range="-3 3" actuatorfrcrange="-20 20"/>
+          <joint name="lb_joint3" pos="0 0 0" axis="0 0 1" range="-3 3" actuatorfrcrange="-20 20"/>
           <geom type="mesh" rgba="1 1 1 1" mesh="lb_link3"/>
           <geom pos="0.24313 0.012189 -0.023501" quat="1 0 0 0" type="sphere" rgba="0.482353 0.027451 0 1" size="0.02" friction="1.2 0.01 0.0001"/>
         </body>

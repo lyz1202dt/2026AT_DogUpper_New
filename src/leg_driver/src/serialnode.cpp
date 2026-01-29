@@ -144,8 +144,8 @@ void SerialNode::legsSubscribCb(const robot_interfaces::msg::Robot& msg) {
         legs_target.leg[i].wheel.torque=msg.legs[i].wheel.torque;
     }
 
-    if(enable_control)
-        cdc_trans->send_struct(legs_target); // 一旦订阅到最新的包，立即发送到下位机
+    //if(enable_control)
+    cdc_trans->send_struct(legs_target); // 一旦订阅到最新的包，立即发送到下位机
 
     target_log_print_cnt++;
     if(target_log_update_cnt==target_log_print_cnt)

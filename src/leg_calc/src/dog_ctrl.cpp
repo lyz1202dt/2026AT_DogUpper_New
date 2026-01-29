@@ -43,7 +43,7 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     node_->declare_parameter("direction_filter_gate", 0.2);
     node_->declare_parameter("vmc_kp", 200.0);
     node_->declare_parameter("vmc_kd", 120.0);
-    node_->declare_parameter("vmc_mass", 2.0);
+    node_->declare_parameter("vmc_mass", 0.5);
 
     node_->declare_parameter("horizontal_vmc_kp", 500.0);
     node_->declare_parameter("horizontal_vmc_kd", 200.0);
@@ -555,13 +555,12 @@ void RobotCalcNode::legs_update() {
 
 
     if (cur_roll > 40 * 3.14 / 180 || cur_roll < -40 * 3.14 / 180 || cur_pitch > 50 * 3.14 / 180
-        || cur_pitch < -50 * 3.14 / 180)               // 防止机器人失控倾倒，倾倒时强制切换为位控站立状态
+        || cur_pitch < -50 * 3.14 / 180)             // 防止机器人失控倾倒，倾倒时强制切换为位控站立状态
         robot_state = DOG_IDEL;
 
-    if (robot_state == DOG_SETUP)                      // 首次进入的模式，狗上电启动
+    if (robot_state == DOG_SETUP)                    // 首次进入的模式，狗上电启动
     {
-
-        if (!legs_state_updated)                       // 如果还没有收到过狗腿的数据，直接退出直到狗腿数据有更新
+        if (!legs_state_updated)                     // 如果还没有收到过狗腿的数据，直接退出直到狗腿数据有更新
         {
             RCLCPP_INFO(node_->get_logger(), "等待首次狗腿状态更新中...");
             return;
@@ -571,44 +570,52 @@ void RobotCalcNode::legs_update() {
             RCLCPP_INFO(node_->get_logger(), "开始执行上电序列");
 
             setup_time = node_->get_clock()->now();
-            lf_leg_step.update_support_trajectory(lf_leg_calc->foot_pos(lf_joint_pos), Vector2D(0.0, 0.0), 5.0);
-            rf_leg_step.update_support_trajectory(lf_leg_calc->foot_pos(lf_joint_pos), Vector2D(0.0, 0.0), 5.0);
-            lb_leg_step.update_support_trajectory(lf_leg_calc->foot_pos(lf_joint_pos), Vector2D(0.0, 0.0), 5.0);
-            rb_leg_step.update_support_trajectory(lf_leg_calc->foot_pos(lf_joint_pos), Vector2D(0.0, 0.0), 5.0);
+            lf_leg_step.update_support_trajectory(lf_joint_pos, Vector3D(0.0, 0.785, 0.0), 5.0);    //直接在关节空间规划，防止逆解带来的不稳定问题
+            rf_leg_step.update_support_trajectory(rf_joint_pos, Vector3D(0.0, -0.785, 0.0), 5.0);
+            lb_leg_step.update_support_trajectory(lb_joint_pos, Vector3D(0.0, 0.785, 0.0), 5.0);
+            rb_leg_step.update_support_trajectory(rb_joint_pos, Vector3D(0.0, -0.785, 0.0), 5.0);
         }
 
         auto now = node_->get_clock()->now();
 
         bool success;
-        auto lf_target  = lf_leg_step.get_target((now - setup_time).seconds(), success);
-        auto rf_target  = rf_leg_step.get_target((now - setup_time).seconds(), success);
-        auto lb_target  = lb_leg_step.get_target((now - setup_time).seconds(), success);
-        auto rb_target  = rb_leg_step.get_target((now - setup_time).seconds(), success);
-        lf_foot_exp_pos = std::get<0>(lf_target);
-        rf_foot_exp_pos = std::get<0>(rf_target);
-        lb_foot_exp_pos = std::get<0>(lb_target);
-        rb_foot_exp_pos = std::get<0>(rb_target);
+        auto lf_target = lf_leg_step.get_target((now - setup_time).seconds(), success);
+        auto rf_target = rf_leg_step.get_target((now - setup_time).seconds(), success);
+        auto lb_target = lb_leg_step.get_target((now - setup_time).seconds(), success);
+        auto rb_target = rb_leg_step.get_target((now - setup_time).seconds(), success);
 
-        if ((now - setup_time).seconds() >= 5.0)       // 上电流程结束，切换到位控站立姿态
+
+        if ((now - setup_time).seconds() >= 5.0)     // 上电流程结束，切换到位控站立姿态
         {
             RCLCPP_INFO(node_->get_logger(), "上电完成，切入IDEL(位置闭环)模式站立");
             robot_state = DOG_IDEL;
         }
+
+        robot_interfaces::msg::Robot joints_target;
+        for (int i = 0; i < 3; i++) {
+            joints_target.legs[0].joints[i].rad = static_cast<float>(std::get<0>(lf_target)[i]);
+            joints_target.legs[1].joints[i].rad = static_cast<float>(std::get<0>(rf_target)[i]);
+            joints_target.legs[2].joints[i].rad = static_cast<float>(std::get<0>(lb_target)[i]);
+            joints_target.legs[3].joints[i].rad = static_cast<float>(std::get<0>(rb_target)[i]);
+        }
+        legs_target_pub->publish(joints_target);
+
+        return;     //上电过程要提前返回，不执行解算
     }
-    if (robot_state == DOG_IDEL)                       // 单位置控制
+    if (robot_state == DOG_IDEL)                     // 单位置控制
     {
         lf_foot_exp_pos = lf_leg_stop_pos = Vector3D(0.0, 0.0, 0.0);
         rf_foot_exp_pos = rf_leg_stop_pos = Vector3D(0.0, 0.0, 0.0);
         lb_foot_exp_pos = lb_leg_stop_pos = Vector3D(0.0, 0.0, 0.0);
         rb_foot_exp_pos = rb_leg_stop_pos = Vector3D(0.0, 0.0, 0.0);
 
-        lf_foot_exp_force = Vector3D(0.0, 0.0, 0.0);   // 清除左前褪期望力
+        lf_foot_exp_force = Vector3D(0.0, 0.0, 0.0); // 清除左前褪期望力
         rf_foot_exp_force = Vector3D(0.0, 0.0, 0.0);
         lb_foot_exp_force = Vector3D(0.0, 0.0, 0.0);
         rb_foot_exp_force = Vector3D(0.0, 0.0, 0.0);
         if (robot_req_state == DOG_REQ_STOP)
             robot_state = DOG_STOP;
-    } else if (robot_state == DOG_STOP) {              // 狗保持站立
+    } else if (robot_state == DOG_STOP) {            // 狗保持站立
 
         lf_foot_exp_pos = lf_leg_stop_pos;
         rf_foot_exp_pos = rf_leg_stop_pos;
@@ -643,11 +650,11 @@ void RobotCalcNode::legs_update() {
             rb_z_vmc->targetUpdate(0.0, rb_cart_pos[2], 0.0, rb_cart_vel[2], -rb_cart_force[2]);
         rb_foot_exp_force += Vector3D(0.0, 0.0, -robot_rb_grivate);
 
-        if (robot_req_state == DOG_REQ_RUN)            // 如果请求转移到行走状态，那么机器人状态先跳转到开始行走状态
+        if (robot_req_state == DOG_REQ_RUN)          // 如果请求转移到行走状态，那么机器人状态先跳转到开始行走状态
             robot_state = DOG_STARTING;
         else if (robot_req_state == DOG_REQ_IDEL)
             robot_state = DOG_IDEL;
-    } else if (robot_state == DOG_STARTING) {          // 狗处于开始前进状态，规划一次初相位轨迹
+    } else if (robot_state == DOG_STARTING) {        // 狗处于开始前进状态，规划一次初相位轨迹
         auto now                = node_->get_clock()->now();
         main_phrase_start_time  = now;
         slave_phrase_start_time = now;

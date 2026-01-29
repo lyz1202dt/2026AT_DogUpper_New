@@ -129,7 +129,7 @@
         xyz="6.3455E-05 0.0025357 0.056203"
         rpy="0 0 0" />
       <mass
-        value="3.0135" />
+        value="4.2135" />
       <inertia
         ixx="0.0060638"
         ixy="-5.3318E-07"
@@ -783,7 +783,7 @@
     <child
       link="lb_link3" />
     <axis
-      xyz="0 0 -1" />
+      xyz="0 0 1" />
     <limit
       lower="-3"
       upper="3"
