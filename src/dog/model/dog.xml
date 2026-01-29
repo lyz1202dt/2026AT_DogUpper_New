@@ -42,11 +42,11 @@
       
       <body name="lf_link1" pos="0.1916 0.069987 0.061999" quat="0.707105 0 0.707108 0">
       <inertial pos="0.000574214 0.00884611 0.0444225" quat="0.521191 0.460379 0.475622 0.538697" mass="0.305259" diaginertia="0.000294539 0.000186896 0.000135452"/>
-      <joint name="lf_joint1" pos="0 0 0" axis="0 0 -1" range="-3 3" actuatorfrcrange="-20 20"/>
+      <joint name="lf_joint1" pos="0 0 0" axis="0 0 1" range="-3 3" actuatorfrcrange="-20 20"/>
       <geom type="mesh" rgba="0.898039 0.917647 0.929412 1" mesh="lf_link1"/>
       <body name="lf_link2" pos="-0.000957 0.029298 0.060013" quat="0.707105 -0.707108 0 0">
         <inertial pos="0.0668406 -0.00037093 0.0525635" quat="-0.0206424 0.706818 0.0207042 0.706791" mass="0.644661" diaginertia="0.00225868 0.00198331 0.000301352"/>
-        <joint name="lf_joint2" pos="0 0 0" axis="0 0 -1" range="-3 3" actuatorfrcrange="-20 20"/>
+        <joint name="lf_joint2" pos="0 0 0" axis="0 0 1" range="-3 3" actuatorfrcrange="-20 20"/>
         <geom type="mesh" rgba="1 1 1 1" mesh="lf_link2"/>
         <body name="lf_link3" pos="0.23001 0 0.0935" quat="0.707105 0 0 -0.707108">
           <inertial pos="0.0647099 -0.0060203 0.0816978" quat="0.691885 -0.127346 -0.165799 0.691078" mass="0.198135" diaginertia="0.00437451 0.003995 0.00042604"/>
@@ -58,7 +58,7 @@
     </body>
     <body name="rf_link1" pos="0.1916 -0.070013 0.061999" quat="0.707105 0 0.707108 0">
       <inertial pos="-0.00109457 -0.00876291 0.044547" quat="0.476235 0.539457 0.520405 0.459745" mass="0.305259" diaginertia="0.000294539 0.000186896 0.000135452"/>
-      <joint name="rf_joint1" pos="0 0 0" axis="0 0 -1" range="-3 3" actuatorfrcrange="-20 20"/>
+      <joint name="rf_joint1" pos="0 0 0" axis="0 0 1" range="-3 3" actuatorfrcrange="-20 20"/>
       <geom type="mesh" rgba="1 1 1 1" mesh="rf_link1"/>
       <body name="rf_link2" pos="-0.0010387 -0.029268 0.059987" quat="0.707105 0.707108 0 0">
         <inertial pos="0.0658456 0.000279501 0.0526643" quat="0.0208579 0.706816 -0.0207629 0.706785" mass="0.653396" diaginertia="0.00226248 0.00198515 0.000303326"/>
@@ -66,7 +66,7 @@
         <geom type="mesh" rgba="1 1 1 1" mesh="rf_link2"/>
         <body name="rf_link3" pos="0.22999 1.0169e-05 0.0935" quat="0.707105 0 0 0.707108">
           <inertial pos="0.0467607 -0.00175159 0.0815497" quat="0.676226 -0.193626 -0.19761 0.682773" mass="0.198135" diaginertia="0.00490176 0.00457448 0.000373869"/>
-          <joint name="rf_joint3" pos="0 0 0" axis="0 -0.0359451 -0.999354" range="-3 3" actuatorfrcrange="-20 20"/>
+          <joint name="rf_joint3" pos="0 0 0" axis="0 0 1" range="-3 3" actuatorfrcrange="-20 20"/>
           <geom type="mesh" rgba="1 1 1 1" mesh="rf_link3"/>
           <geom pos="0.24313 -0.013026 -0.023046" quat="0.0179954 0.999838 0 0" type="sphere" rgba="0.482353 0.027451 0 1" size="0.02" friction="1.2 0.01 0.0001"/>
         </body>
@@ -74,11 +74,11 @@
     </body>
     <body name="lb_link1" pos="-0.1916 0.070013 0.061999" quat="-2.59734e-06 0.707105 -2.59735e-06 -0.707108">
       <inertial pos="-0.000761616 -0.00879802 0.044547" quat="0.467448 0.52951 0.530523 0.468677" mass="0.305259" diaginertia="0.000294539 0.000186896 0.000135452"/>
-      <joint name="lb_joint1" pos="0 0 0" axis="0 0 -1" range="-3 3" actuatorfrcrange="-20 20"/>
+      <joint name="lb_joint1" pos="0 0 0" axis="0 0 1" range="-3 3" actuatorfrcrange="-20 20"/>
       <geom type="mesh" rgba="0.898039 0.917647 0.929412 1" mesh="lb_link1"/>
       <body name="lb_link2" pos="7.0296e-05 -0.029287 0.059987" quat="0.707105 0.707108 0 0">
         <inertial pos="0.0641255 -0.000392291 0.0504984" quat="-0.0207255 0.70681 0.0206398 0.706798" mass="0.673604" diaginertia="0.00227128 0.00198992 0.000307448"/>
-        <joint name="lb_joint2" pos="0 0 0" axis="0 0 -1" range="-3 3" actuatorfrcrange="-20 20"/>
+        <joint name="lb_joint2" pos="0 0 0" axis="0 0 1" range="-3 3" actuatorfrcrange="-20 20"/>
         <geom type="mesh" rgba="1 1 1 1" mesh="lb_link2"/>
         <body name="lb_link3" pos="0.23001 0 0.0935" quat="0.707105 0 0 -0.707108">
           <inertial pos="0.050693 -0.0103779 0.0815839" quat="0.68722 -0.151926 -0.217761 0.676186" mass="0.198135" diaginertia="0.00480061 0.00446106 0.000385922"/>
@@ -90,15 +90,15 @@
     </body>
     <body name="rb_link1" pos="-0.1916 -0.07 0.062" quat="-2.59734e-06 0.707105 -2.59735e-06 -0.707108">
       <inertial pos="0.000187256 0.00884962 0.0444224" quat="0.50925 0.449836 0.485606 0.55" mass="0.305259" diaginertia="0.000294539 0.000186896 0.000135452"/>
-      <joint name="rb_joint1" pos="0 0 0" axis="0 0 -1" range="-3 3" actuatorfrcrange="-20 20"/>
+      <joint name="rb_joint1" pos="0 0 0" axis="0 0 1" range="-3 3" actuatorfrcrange="-20 20"/>
       <geom type="mesh" rgba="0.898039 0.917647 0.929412 1" mesh="rb_link1"/>
       <body name="rb_link2" pos="-0.0022402 0.029214 0.06" quat="0.707105 -0.707108 0 0">
         <inertial pos="0.0629593 0.000213694 0.0506213" quat="0.0208318 0.706817 -0.0207387 0.706786" mass="0.682339" diaginertia="0.00227508 0.00199134 0.000309842"/>
-        <joint name="rb_joint2" pos="0 0 0" axis="0 0 -1" range="-3 3" actuatorfrcrange="-20 20"/>
+        <joint name="rb_joint2" pos="0 0 0" axis="0 0 1" range="-3 3" actuatorfrcrange="-20 20"/>
         <geom type="mesh" rgba="1 1 1 1" mesh="rb_link2"/>
         <body name="rb_link3" pos="0.23 0 0.0935" quat="0.707105 0 0 0.707108">
           <inertial pos="0.0525255 0.0105005 0.0817597" quat="0.677595 -0.213205 -0.14646 0.688447" mass="0.198135" diaginertia="0.00475205 0.00440702 0.000391369"/>
-          <joint name="rb_joint3" pos="0 0 0" axis="0 0 -1" range="-3 3" actuatorfrcrange="-20 20"/>
+          <joint name="rb_joint3" pos="0 0 0" axis="0 0 1" range="-3 3" actuatorfrcrange="-20 20"/>
           <geom type="mesh" rgba="1 1 1 1" mesh="rb_link3" />
           <geom pos="0.24313 -0.012189 -0.023499" quat="1 0 0 0" type="sphere" rgba="0.482353 0.027451 0 1" size="0.02" friction="1.2 0.01 0.0001"/>
         </body>
