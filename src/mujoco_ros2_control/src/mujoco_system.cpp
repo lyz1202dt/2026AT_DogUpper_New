@@ -400,7 +400,8 @@ namespace mujoco_ros2_control {
             JointData& joint = joint_item.second;
             joint.position = mujoco_data_->qpos[joint.mujoco_qpos_addr];
             joint.velocity = mujoco_data_->qvel[joint.mujoco_dofadr];
-            joint.effort = mujoco_data_->qfrc_applied[joint.mujoco_dofadr];
+            // Read actual actuator force instead of applied force
+            joint.effort = mujoco_data_->qfrc_actuator[joint.mujoco_dofadr];
         }
         return hardware_interface::return_type::OK;
     }
