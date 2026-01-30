@@ -574,38 +574,25 @@ void RobotCalcNode::legs_update() {
             return;
         }
         //需要规划轨迹0（小腿举起）
-        if (setup_stage == 0&&(!trajectory_calced)) {
+        if ((setup_stage == 0)&&(!trajectory_calced)) {
             RCLCPP_INFO(node_->get_logger(), "开始执行上电序列1");
 
             trajectory_calced=true;
             setup_time = node_->get_clock()->now();
-            lf_leg_step.update_support_trajectory(
-                lf_joint_pos, Vector3D(lf_joint_pos[0], -3.14, rf_joint_pos[2]), 5.0); // 直接在关节空间规划，防止逆解带来的不稳定问题
-            rf_leg_step.update_support_trajectory(rf_joint_pos, Vector3D(rf_joint_pos[0], 3.14, rf_joint_pos[2]), 4.0);
-            lb_leg_step.update_support_trajectory(lb_joint_pos, Vector3D(lb_joint_pos[0], -3.14, rf_joint_pos[2]), 4.0);
-            rb_leg_step.update_support_trajectory(rb_joint_pos, Vector3D(rb_joint_pos[0], 3.14, rf_joint_pos[2]), 4.0);
-        }//需要规划轨迹1（髋关节水平）
-        else if (setup_stage == 1&&(!trajectory_calced)) {
+            lf_leg_step.update_support_trajectory(lf_joint_pos, Vector3D(0.0, 3.14, lf_joint_pos[2]), 4.0);
+            rf_leg_step.update_support_trajectory(rf_joint_pos, Vector3D(0.0, -3.14, rf_joint_pos[2]), 4.0);
+            lb_leg_step.update_support_trajectory(lb_joint_pos, Vector3D(0.0, 3.14, lb_joint_pos[2]), 4.0);
+            rb_leg_step.update_support_trajectory(rb_joint_pos, Vector3D(0.0, -3.14, rb_joint_pos[2]), 4.0);
+        }//需要规划轨迹1（戳地站起来）
+        else if ((setup_stage == 1)&&(!trajectory_calced)) {
             RCLCPP_INFO(node_->get_logger(), "开始执行上电序列2");
 
             trajectory_calced=true;
             setup_time = node_->get_clock()->now();
-            lf_leg_step.update_support_trajectory(
-                lf_joint_pos, Vector3D(0.0, -3.14, lf_joint_pos[2]), 5.0); // 直接在关节空间规划，防止逆解带来的不稳定问题
-            rf_leg_step.update_support_trajectory(rf_joint_pos, Vector3D(0.0, 3.14, rf_joint_pos[2]), 1.0);
-            lb_leg_step.update_support_trajectory(lb_joint_pos, Vector3D(0.0, -3.14, lb_joint_pos[2]), 1.0);
-            rb_leg_step.update_support_trajectory(rb_joint_pos, Vector3D(0.0, 3.14, rb_joint_pos[2]), 1.0);
-        }   //需要规划轨迹3（腿往下蹬，站起来）
-        else if (setup_stage == 2&&(!trajectory_calced)) {
-            RCLCPP_INFO(node_->get_logger(), "开始执行上电序列3");
-
-            trajectory_calced=true;
-            setup_time = node_->get_clock()->now();
-            lf_leg_step.update_support_trajectory(
-                lf_joint_pos, Vector3D(0.0, 0.785, 0.0), 5.0); // 直接在关节空间规划，防止逆解带来的不稳定问题
-            rf_leg_step.update_support_trajectory(rf_joint_pos, Vector3D(0.0, -0.785, 0.0), 5.0);
-            lb_leg_step.update_support_trajectory(lb_joint_pos, Vector3D(0.0, 0.785, 0.0), 5.0);
-            rb_leg_step.update_support_trajectory(rb_joint_pos, Vector3D(0.0, -0.785, 0.0), 5.0);
+            lf_leg_step.update_support_trajectory(lf_joint_pos, Vector3D(0.0, 0.785, 0.0), 4.0);
+            rf_leg_step.update_support_trajectory(rf_joint_pos, Vector3D(0.0, -0.785, 0.0), 4.0);
+            lb_leg_step.update_support_trajectory(lb_joint_pos, Vector3D(0.0, 0.785, 0.0), 4.0);
+            rb_leg_step.update_support_trajectory(rb_joint_pos, Vector3D(0.0, -0.785, 0.0), 4.0);
         }
 
         //从轨迹解析当前目标值
@@ -615,9 +602,15 @@ void RobotCalcNode::legs_update() {
         auto rf_target = rf_leg_step.get_target((now - setup_time).seconds(), success);
         auto lb_target = lb_leg_step.get_target((now - setup_time).seconds(), success);
         auto rb_target = rb_leg_step.get_target((now - setup_time).seconds(), success);
-        if (!success)
+        if ((now - setup_time).seconds()>4.0)
         {
             trajectory_calced=false;
+            if(setup_stage==2)
+            {
+                RCLCPP_INFO(node_->get_logger(),"上电完成,进入IDEL模式");
+                robot_state = DOG_IDEL;
+            }
+                
             setup_stage++;
         }
 
