@@ -49,7 +49,7 @@ public:
         DOG_SETP,
         DOG_ENDING,
 
-        DOG_CLIMB_STEPS,   //登上台阶
+        DOG_READY_CROSS_WALL,     //跨越墙体任务
         DOG_CROSS_WALL,     //跨越墙体任务
         DOG_SETUP
     };
@@ -154,6 +154,7 @@ private:
     double robot_rf_grivate{0.0};
     double robot_lb_grivate{0.0};
     double robot_rb_grivate{0.0};
+    double exp_roll,exp_pitch;
     
 
     tf2::Quaternion robot_rotation;                    //机器人姿态

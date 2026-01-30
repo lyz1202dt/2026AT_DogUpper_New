@@ -41,7 +41,7 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     pitch_vmc = std::make_shared<SimpleVMC>(500.0, 100.0, 100);
 
     node_->declare_parameter("direction_filter_gate", 0.2);
-    node_->declare_parameter("vmc_kp", 200.0);
+    node_->declare_parameter("vmc_kp", 100.0);
     node_->declare_parameter("vmc_kd", 120.0);
     node_->declare_parameter("vmc_mass", 0.5);
 
@@ -56,14 +56,16 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     node_->declare_parameter("roll_balance_force_compen", 1.0);
     node_->declare_parameter("pitch_balance_force_compen", 1.0);
 
-    node_->declare_parameter("lf_grivate", 25.0);
-    node_->declare_parameter("rf_grivate", 25.0);
-    node_->declare_parameter("lb_grivate", 30.0);
-    node_->declare_parameter("rb_grivate", 30.0);
+    node_->declare_parameter("lf_grivate", 22.0);
+    node_->declare_parameter("rf_grivate", 22.0);
+    node_->declare_parameter("lb_grivate", 26.0);
+    node_->declare_parameter("rb_grivate", 26.0);
     node_->declare_parameter("lf_dx", 0.0);
     node_->declare_parameter("rf_dx", 0.0);
     node_->declare_parameter("lb_dx", -0.1);
     node_->declare_parameter("rb_dx", -0.1);
+    node_->declare_parameter("exp_roll",0.0);
+    node_->declare_parameter("exp_pitch",0.0);
 
     node_->declare_parameter("step_support_rate", 0.6); // 支撑相时间
     node_->declare_parameter("step_time", 0.5);        // 一个完整步态时间（0.7共振，0.8太慢容易失衡，最好0.6）
@@ -71,7 +73,7 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
 
     node_->declare_parameter("target_roll", 0.0);       // 狗子期望的当前俯仰角
     node_->declare_parameter("target_pitch", 0.0);
-    node_->declare_parameter("body_height", 0.26);
+    node_->declare_parameter("body_height", 0.27);
 
 
     param_server_ = node_->add_on_set_parameters_callback([this](const std::vector<rclcpp::Parameter>& params) {
@@ -81,7 +83,17 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
         std::string name;
         for (const auto& param : params) {
             name = param.get_name();
-            if (name == "horizontal_vmc_kp") {
+            if(name=="exp_roll")
+            {
+                RCLCPP_INFO(node_->get_logger(),"roll姿态更新");
+                exp_roll=param.as_double();
+            }
+            else if(name=="exp_pitch")
+            {
+                RCLCPP_INFO(node_->get_logger(),"pitch姿态更新");
+                exp_pitch=param.as_double();
+            }
+            else if (name == "horizontal_vmc_kp") {
                 double value = param.as_double();
                 lf_x_vmc->kp = value;
                 lf_y_vmc->kp = value;
@@ -535,8 +547,11 @@ void RobotCalcNode::legs_update() {
     double cur_roll, cur_pitch, cur_yaw;
     tf2::Matrix3x3(robot_rotation).getRPY(cur_roll, cur_pitch, cur_yaw);
 
-    roll_offset_virtual_torque  = roll_vmc->update(cur_roll, robot_velocity.angular.x);
-    pitch_offset_virtual_torque = pitch_vmc->update(cur_pitch, robot_velocity.angular.y);
+    cur_roll=cur_roll-exp_roll;
+    cur_pitch=cur_pitch-exp_pitch;
+
+    roll_offset_virtual_torque  = roll_vmc->update(cur_roll, robot_velocity.angular.x,exp_roll);
+    pitch_offset_virtual_torque = pitch_vmc->update(cur_pitch, robot_velocity.angular.y,exp_pitch);
     // RCLCPP_INFO(node_->get_logger(),"roll:%lf,pitch:%lf",cur_roll,cur_pitch);
 
     // TODO:计算四个足端的期望的平衡虚拟力(pitch)
@@ -877,10 +892,7 @@ void RobotCalcNode::legs_update() {
         rb_foot_exp_pos = rb_leg_stop_pos;
 
         robot_state = DOG_STOP;
-    } else if (robot_state == DOG_CLIMB_STEPS) // 需要登上台阶
-    {
-
-    } else if (robot_state == DOG_CROSS_WALL)  // 需要跨过高墙
+    }else if (robot_state == DOG_CROSS_WALL)  // 需要跨过高墙
     {
         // TODO:狗子左前褪抬起来，其它三条腿支撑，左前褪搭上高墙
         // TODO:右前腿搭上高墙
@@ -942,32 +954,8 @@ void RobotCalcNode::legs_update() {
         joint_display_msg.position[10] = rb_joint_pos[1];
         joint_display_msg.position[11] = rb_joint_pos[2];
 
-        // for(int i=0;i<12;i++)   //在RVIZ2中显示期望
-        //     joint_display_msg.position[i]=joints_target.legs[i/3].joints[i%3].rad;
-
         joint_display_msg.header.stamp = node_->get_clock()->now();
         rviz_joint_publisher->publish(joint_display_msg);
-
-#if 0
-        // 离线模拟、认为关节立即到达发布的目标位置
-        robot_interfaces::msg::Robot msg = joints_target;
-        for (int i = 0; i < 3; i++) {
-            lf_joint_pos[i] = (double)msg.legs[0].joints[i].rad;
-            rf_joint_pos[i] = (double)msg.legs[1].joints[i].rad;
-            lb_joint_pos[i] = (double)msg.legs[2].joints[i].rad;
-            rb_joint_pos[i] = (double)msg.legs[3].joints[i].rad;
-
-            lf_joint_vel[i] = (double)msg.legs[0].joints[i].omega;
-            rf_joint_vel[i] = (double)msg.legs[1].joints[i].omega;
-            lb_joint_vel[i] = (double)msg.legs[2].joints[i].omega;
-            rb_joint_vel[i] = (double)msg.legs[3].joints[i].omega;
-
-            lf_joint_torque[i] = (double)msg.legs[0].joints[i].torque;
-            rf_joint_torque[i] = (double)msg.legs[1].joints[i].torque;
-            lb_joint_torque[i] = (double)msg.legs[2].joints[i].torque;
-            rb_joint_torque[i] = (double)msg.legs[3].joints[i].torque;
-        }
-#endif
     }
 
     geometry_msgs::msg::TransformStamped t;
