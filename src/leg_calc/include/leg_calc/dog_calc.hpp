@@ -163,6 +163,7 @@ private:
 
     //启动过程
     bool legs_state_updated{false};
-    bool setup_trajectory_calced{false};
+    bool trajectory_calced{false};
+    int setup_stage{0};
     rclcpp::Time setup_time;
 };
