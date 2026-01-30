@@ -50,28 +50,28 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     node_->declare_parameter("horizontal_vmc_mass", 3.0);
 
     node_->declare_parameter("roll_vmc_kp", -300.0);
-    node_->declare_parameter("roll_vmc_kd", -40.0);
-    node_->declare_parameter("pitch_vmc_kp", 600.0);
-    node_->declare_parameter("pitch_vmc_kd", 100.0);
+    node_->declare_parameter("roll_vmc_kd", 0.0);
+    node_->declare_parameter("pitch_vmc_kp", 500.0);
+    node_->declare_parameter("pitch_vmc_kd", 0.0);
     node_->declare_parameter("roll_balance_force_compen", 1.0);
     node_->declare_parameter("pitch_balance_force_compen", 1.0);
 
-    node_->declare_parameter("lf_grivate", 20.0);
-    node_->declare_parameter("rf_grivate", 20.0);
-    node_->declare_parameter("lb_grivate", 25.0);
-    node_->declare_parameter("rb_grivate", 25.0);
+    node_->declare_parameter("lf_grivate", 25.0);
+    node_->declare_parameter("rf_grivate", 25.0);
+    node_->declare_parameter("lb_grivate", 30.0);
+    node_->declare_parameter("rb_grivate", 30.0);
     node_->declare_parameter("lf_dx", 0.0);
     node_->declare_parameter("rf_dx", 0.0);
-    node_->declare_parameter("lb_dx", -0.05);
-    node_->declare_parameter("rb_dx", -0.05);
+    node_->declare_parameter("lb_dx", -0.1);
+    node_->declare_parameter("rb_dx", -0.1);
 
     node_->declare_parameter("step_support_rate", 0.6); // 支撑相时间
-    node_->declare_parameter("step_time", 0.55);        // 一个完整步态时间（0.7共振，0.8太慢容易失衡，最好0.6）
-    node_->declare_parameter("step_height", 0.14);
+    node_->declare_parameter("step_time", 0.5);        // 一个完整步态时间（0.7共振，0.8太慢容易失衡，最好0.6）
+    node_->declare_parameter("step_height", 0.08);
 
     node_->declare_parameter("target_roll", 0.0);       // 狗子期望的当前俯仰角
     node_->declare_parameter("target_pitch", 0.0);
-    node_->declare_parameter("body_height", 0.21);
+    node_->declare_parameter("body_height", 0.26);
 
 
     param_server_ = node_->add_on_set_parameters_callback([this](const std::vector<rclcpp::Parameter>& params) {
@@ -167,9 +167,13 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
                 step_height = param.as_double();
             else if (name == "body_height") {
                 double temp = param.as_double();
-                if (temp < 0.32 && temp > 0.1)
+                if (temp < 0.32 && temp > 0.1){
                     body_height = temp;
-                else {
+                    lf_base_offset[2]=-body_height;
+                    rf_base_offset[2]=-body_height;
+                    lb_base_offset[2]=-body_height;
+                    rb_base_offset[2]=-body_height;
+                }else{
                     result.successful = false;
                     result.reason     = "狗身期望高度过大或过小";
                 }
@@ -522,7 +526,11 @@ void RobotCalcNode::legs_update() {
     auto rb_foot_exp_acc   = Vector3D(0.0, 0.0, 0.0);
     auto rb_foot_exp_force = Vector3D(0.0, 0.0, 0.0);
 
-
+    //不启用根据姿态补偿足端位置的代码可以的情况下，以下四行代码可以放在这里
+    lf_leg_calc->pos_offset = lf_base_offset;
+    rf_leg_calc->pos_offset = rf_base_offset;
+    lb_leg_calc->pos_offset = lb_base_offset;
+    rb_leg_calc->pos_offset = rb_base_offset;
 
     double cur_roll, cur_pitch, cur_yaw;
     tf2::Matrix3x3(robot_rotation).getRPY(cur_roll, cur_pitch, cur_yaw);
