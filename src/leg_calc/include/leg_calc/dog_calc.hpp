@@ -33,7 +33,7 @@
 #include <geometry_msgs/msg/twist.hpp>
 #include <tf2/LinearMath/Matrix3x3.hpp>
 #include <tf2/LinearMath/Quaternion.hpp>
-
+#include <robot_interfaces/msg/remote_cmd.hpp>
 
 
 class RobotCalcNode {
@@ -92,6 +92,7 @@ private:
     rclcpp::Subscription<robot_interfaces::msg::MoveCmd>::SharedPtr move_cmd_sub;
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr imu_sub;
     rclcpp::Subscription<geometry_msgs::msg::Vector3>::SharedPtr imu_angular_vel_sub;
+    rclcpp::Subscription<robot_interfaces::msg::RemoteCmd>::SharedPtr remote_cmd_sub;
     rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr rviz_joint_publisher;
     rclcpp::SyncParametersClient::SharedPtr robot_description_param_;
     std::unique_ptr<tf2_ros::TransformBroadcaster> robot_tf_broadcaster;
@@ -159,7 +160,18 @@ private:
     tf2::Quaternion robot_rotation;                    //机器人姿态
     geometry_msgs::msg::Twist robot_velocity;          //机器人速度信息
 
-
+//remote
+    double remote_vx_ = 0.0;        // 机身期望前进速度 (m/s)
+    double remote_vy_ = 0.0;        // 机身期望横向速度 (m/s)
+    double remote_vz_ = 0.0;        // 机身期望垂直速度 (m/s)（预留）
+    double remote_omega_z_ = 0.0;   // 机身期望偏航角速度 (rad/s)
+    double remote_leg0_wheel_ = 0.0;// 左前腿轮子期望转速 (rad/s)
+    double remote_leg1_wheel_ = 0.0;// 右前腿轮子期望转速 (rad/s)
+    double remote_leg2_wheel_ = 0.0;// 左后腿轮子期望转速 (rad/s)
+    double remote_leg3_wheel_ = 0.0;// 右后腿轮子期望转速 (rad/s)
+    bool has_remote_cmd_ = false;   // 远程指令有效标志（是否收到合法指令）
+    rclcpp::Time last_remote_cmd_time_; // 最后一次收到远程指令的时间（防超时）
+    const double REMOTE_CMD_TIMEOUT = 1.0; // 远程指令超时时间（1秒，可自定义）
 
     //启动过程
     bool legs_state_updated{false};

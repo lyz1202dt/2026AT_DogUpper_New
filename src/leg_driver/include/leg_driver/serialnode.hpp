@@ -10,6 +10,7 @@
 #include "sensor_msgs/msg/imu.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 
+#include <robot_interfaces/msg/remote_cmd.hpp>
 class SerialNode : public rclcpp::Node
 {
 public:
@@ -34,7 +35,7 @@ private:
     rclcpp::Subscription<robot_interfaces::msg::Robot>::SharedPtr robot_sub;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr imu_pub;
     rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr imu_angular_vel_pub;
-    
+    rclcpp::Publisher<robot_interfaces::msg::RemoteCmd>::SharedPtr remote_pub;
     OnSetParametersCallbackHandle::SharedPtr param_server_;
 
     double joint_kp[3],joint_kd[3];

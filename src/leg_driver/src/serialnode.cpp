@@ -7,6 +7,7 @@
 #include <thread>
 #include <chrono>
 #include <tf2/LinearMath/Quaternion.h> 
+#include <robot_interfaces/msg/remote_cmd.hpp>
 using namespace std::chrono_literals;
 
 SerialNode::SerialNode()
@@ -59,7 +60,7 @@ SerialNode::SerialNode()
     robot_sub = this->create_subscription<robot_interfaces::msg::Robot>(
         "legs_target", 10, std::bind(&SerialNode::legsSubscribCb, this, std::placeholders::_1));
 
-
+    remote_pub= this->create_publisher<robot_interfaces::msg::RemoteCmd>("robot_remote_cmd", 10);
     cdc_trans = std::make_unique<CDCTrans>();                           // 创建CDC传输对象
     cdc_trans->regeiser_recv_cb([this](const uint8_t* data, int size) { // 注册接收回调
         //RCLCPP_INFO(this->get_logger(), "接收到了数据包,长度%d", size);
@@ -105,6 +106,17 @@ void SerialNode::publishLegState(const MotorStatePack_t* legs_state) {
         msg.legs[i].wheel.omega=legs_state->leg[i].wheel.omega;
         msg.legs[i].wheel.torque=legs_state->leg[i].wheel.torque;
     }
+   
+    robot_interfaces::msg::RemoteCmd remote_msg;
+    remote_msg.rob_vx =  legs_state->remote.vx;
+    remote_msg.rob_vy =  legs_state->remote.vy;
+    remote_msg.rob_vz =  legs_state->remote.vz;
+    remote_msg.rob_omega_z = legs_state->remote.omega_z;
+    remote_msg.leg0_wheel_speed = legs_state->remote.leg0_wheel_speed;
+    remote_msg.leg1_wheel_speed = legs_state->remote.leg1_wheel_speed;
+    remote_msg.leg2_wheel_speed = legs_state->remote.leg2_wheel_speed;
+    remote_msg.leg3_wheel_speed = legs_state->remote.leg3_wheel_speed;
+    remote_pub->publish(remote_msg);
 
     geometry_msgs::msg::PoseStamped imu_msg;
     tf2::Quaternion q;

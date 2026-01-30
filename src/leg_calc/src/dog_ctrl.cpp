@@ -17,7 +17,7 @@
 #include <tuple>
 #include <visualization_msgs/msg/marker.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
-
+#include <robot_interfaces/msg/remote_cmd.hpp>
 using namespace std::chrono_literals;
 
 RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
@@ -298,6 +298,24 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
             }
         });
 
+   // 替换原代码中 remote_cmd_sub 的创建逻辑
+    remote_cmd_sub = node_->create_subscription<robot_interfaces::msg::RemoteCmd>(
+    "remote_move_cmd", 10, [this](const robot_interfaces::msg::RemoteCmd& msg) {
+        // 核心：将只读的远程指令拷贝到类成员变量（const 不可直接修改，只能拷贝）
+        this->remote_vx_ = msg.rob_vx;
+        this->remote_vy_ = msg.rob_vy;
+        this->remote_vz_ = msg.rob_vz;
+        this->remote_omega_z_ = msg.rob_omega_z;
+        // 四轮转速
+        this->remote_leg0_wheel_ = msg.leg0_wheel_speed;
+        this->remote_leg1_wheel_ = msg.leg1_wheel_speed;
+        this->remote_leg2_wheel_ = msg.leg2_wheel_speed;
+        this->remote_leg3_wheel_ = msg.leg3_wheel_speed;
+        // 标记已收到远程指令
+        this->has_remote_cmd_ = true;
+        this->last_remote_cmd_time_= node_->get_clock()->now();
+    });
+
     // 订阅机器人的运动期望
     move_cmd_sub =
         node_->create_subscription<robot_interfaces::msg::MoveCmd>("robot_move_cmd", 10, [this](const robot_interfaces::msg::MoveCmd& msg) {
@@ -522,7 +540,17 @@ void RobotCalcNode::legs_update() {
     auto rb_foot_exp_acc   = Vector3D(0.0, 0.0, 0.0);
     auto rb_foot_exp_force = Vector3D(0.0, 0.0, 0.0);
 
-
+if (has_remote_cmd_) {
+        double time_diff = (node_->get_clock()->now() - last_remote_cmd_time_).seconds();
+        const double REMOTE_CMD_TIMEOUT = 1.0; // 1秒超时，可根据需求调整
+        if (time_diff > REMOTE_CMD_TIMEOUT) {
+            // 超时清零所有远程指令，标记为无效
+            has_remote_cmd_ = false;
+            remote_vx_ = remote_vy_ = remote_omega_z_ = 0.0;
+            remote_leg0_wheel_ = remote_leg1_wheel_ = remote_leg2_wheel_ = remote_leg3_wheel_ = 0.0;
+            RCLCPP_WARN(node_->get_logger(), "远程指令超时(%.1fs未收到)，自动清零", time_diff);
+        }
+    }
 
     double cur_roll, cur_pitch, cur_yaw;
     tf2::Matrix3x3(robot_rotation).getRPY(cur_roll, cur_pitch, cur_yaw);
@@ -663,6 +691,29 @@ void RobotCalcNode::legs_update() {
             + rclcpp::Duration(
                 std::chrono::duration<double>(
                     (std::abs(2.0 * step_support_rate - 1.0) * 0.5 + 1.0 - step_support_rate) * step_time)); // 预规划从相位支撑相结束时间
+          
+    Vector3D v_body(0.0, 0.0, 0.0);  // 机身期望速度
+    Vector3D omega(0.0, 0.0, 0.0);   // 机身期望角速度
+    if (has_remote_cmd_) {
+        // 有远程指令：使用远程下发的机身速度/角速度
+        v_body = Vector3D(remote_vx_, remote_vy_, 0.0);
+        omega = Vector3D(0.0, 0.0, remote_omega_z_);
+    } else {
+        // 无远程指令：沿用原有预定义速度（保持兼容）
+        v_body = Vector3D(lf_exp_vel[0], lf_exp_vel[1], 0.0);
+        omega = Vector3D(0.0, 0.0, 0.0);
+    }
+    // 解算四腿端期望速度（机身速度 + 角速度叉乘腿偏移量，机器人运动学核心）
+    Vector3D lf_exp_vel_new = v_body + omega.cross(lf_leg_calc->pos_offset);
+    Vector3D rf_exp_vel_new = v_body + omega.cross(rf_leg_calc->pos_offset);
+    Vector3D lb_exp_vel_new = v_body + omega.cross(lb_leg_calc->pos_offset);
+    Vector3D rb_exp_vel_new = v_body + omega.cross(rb_leg_calc->pos_offset);
+    // 更新为2D速度（步态规划仅需平面速度）
+    lf_exp_vel = Vector2D(lf_exp_vel_new[0], lf_exp_vel_new[1]);
+    rf_exp_vel = Vector2D(rf_exp_vel_new[0], rf_exp_vel_new[1]);
+    lb_exp_vel = Vector2D(lb_exp_vel_new[0], lb_exp_vel_new[1]);
+    rb_exp_vel = Vector2D(rb_exp_vel_new[0], rb_exp_vel_new[1]);
+
         lf_leg_step.update_flight_trajectory(
             lf_leg_calc->foot_pos(lf_joint_pos), Vector3D(0.0, 0.0, 0.0), lf_exp_vel, ((1.0 - step_support_rate) * step_time), step_height);
         rf_leg_step.update_support_trajectory(
@@ -682,6 +733,20 @@ void RobotCalcNode::legs_update() {
         robot_state = DOG_SETP;         // 初始相
     } else if (robot_state == DOG_SETP) // 机器人正在正常执行步态
     {
+if (has_remote_cmd_) {
+        Vector3D v_body(remote_vx_, remote_vy_, 0.0);
+        Vector3D omega(0.0, 0.0, remote_omega_z_);
+        // 实时解算并更新腿端2D期望速度
+        Vector3D lf_exp_vel_new = v_body + omega.cross(lf_leg_calc->pos_offset);
+        Vector3D rf_exp_vel_new = v_body + omega.cross(rf_leg_calc->pos_offset);
+        Vector3D lb_exp_vel_new = v_body + omega.cross(lb_leg_calc->pos_offset);
+        Vector3D rb_exp_vel_new = v_body + omega.cross(rb_leg_calc->pos_offset);
+        lf_exp_vel = Vector2D(lf_exp_vel_new[0], lf_exp_vel_new[1]);
+        rf_exp_vel = Vector2D(rf_exp_vel_new[0], rf_exp_vel_new[1]);
+        lb_exp_vel = Vector2D(lb_exp_vel_new[0], lb_exp_vel_new[1]);
+        rb_exp_vel = Vector2D(rb_exp_vel_new[0], rb_exp_vel_new[1]);
+    }
+
         auto now = node_->get_clock()->now();
         // TODO:利用LegStep类的轨迹计算是否成功的判据来决定是否开启
         if (step1_flight_updated && (!step1_support_updated)) {    // 处于足端飞行相
@@ -912,6 +977,18 @@ void RobotCalcNode::legs_update() {
         joints_target.legs[3].joints[i].omega  = (float)std::get<1>(rb_leg_joints_target)[i];
         joints_target.legs[3].joints[i].torque = (float)std::get<2>(rb_leg_joints_target)[i];
     }
+if (has_remote_cmd_) {
+        joints_target.legs[0].wheel.omega = static_cast<float>(remote_leg0_wheel_); // 左前腿轮子
+        joints_target.legs[1].wheel.omega = static_cast<float>(remote_leg1_wheel_); // 右前腿轮子
+        joints_target.legs[2].wheel.omega = static_cast<float>(remote_leg2_wheel_); // 左后腿轮子
+        joints_target.legs[3].wheel.omega = static_cast<float>(remote_leg3_wheel_); // 右后腿轮子
+        // 轮子力矩暂设为0，若需要力矩闭环，可添加PID计算后赋值
+        joints_target.legs[0].wheel.torque = 0.0f;
+        joints_target.legs[1].wheel.torque = 0.0f;
+        joints_target.legs[2].wheel.torque = 0.0f;
+        joints_target.legs[3].wheel.torque = 0.0f;
+    }
+
     legs_target_pub->publish(joints_target);
 
     rviz2_update_cnt++;

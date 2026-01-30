@@ -56,9 +56,22 @@ typedef struct{
 }LegState_t;
 
 typedef struct{
+    float vx;
+    float vy;
+    float vz;
+    float omega_z;
+    float leg0_wheel_speed; 
+    float leg1_wheel_speed;
+    float leg2_wheel_speed;
+    float leg3_wheel_speed;
+
+}Remote_pack_t;
+
+typedef struct{
     int pack_type;
     LegState_t leg[4];
     JY61_Typedef JY61;
+    Remote_pack_t remote;
 }MotorStatePack_t;
 
 
