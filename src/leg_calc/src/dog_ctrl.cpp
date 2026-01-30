@@ -304,7 +304,6 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
         // 核心：将只读的远程指令拷贝到类成员变量（const 不可直接修改，只能拷贝）
         this->remote_vx_ = msg.rob_vx;
         this->remote_vy_ = msg.rob_vy;
-        this->remote_vz_ = msg.rob_vz;
         this->remote_omega_z_ = msg.rob_omega_z;
         // 四轮转速
         this->remote_leg0_wheel_ = msg.leg0_wheel_speed;

@@ -163,7 +163,6 @@ private:
 //remote
     double remote_vx_ = 0.0;        // 机身期望前进速度 (m/s)
     double remote_vy_ = 0.0;        // 机身期望横向速度 (m/s)
-    double remote_vz_ = 0.0;        // 机身期望垂直速度 (m/s)（预留）
     double remote_omega_z_ = 0.0;   // 机身期望偏航角速度 (rad/s)
     double remote_leg0_wheel_ = 0.0;// 左前腿轮子期望转速 (rad/s)
     double remote_leg1_wheel_ = 0.0;// 右前腿轮子期望转速 (rad/s)

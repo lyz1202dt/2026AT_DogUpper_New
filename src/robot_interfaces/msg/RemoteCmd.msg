@@ -1,6 +1,5 @@
 float32 rob_vx
 float32 rob_vy
-float32 rob_vz
 float32 rob_omega_z
 float32 leg0_wheel_speed
 float32 leg1_wheel_speed

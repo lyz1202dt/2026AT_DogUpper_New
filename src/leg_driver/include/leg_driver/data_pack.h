@@ -60,11 +60,7 @@ typedef struct{
     float vy;
     float vz;
     float omega_z;
-    float leg0_wheel_speed; 
-    float leg1_wheel_speed;
-    float leg2_wheel_speed;
-    float leg3_wheel_speed;
-
+    float wheel_speed; 
 }Remote_pack_t;
 
 typedef struct{

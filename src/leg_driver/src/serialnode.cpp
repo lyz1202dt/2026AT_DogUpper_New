@@ -110,12 +110,11 @@ void SerialNode::publishLegState(const MotorStatePack_t* legs_state) {
     robot_interfaces::msg::RemoteCmd remote_msg;
     remote_msg.rob_vx =  legs_state->remote.vx;
     remote_msg.rob_vy =  legs_state->remote.vy;
-    remote_msg.rob_vz =  legs_state->remote.vz;
     remote_msg.rob_omega_z = legs_state->remote.omega_z;
-    remote_msg.leg0_wheel_speed = legs_state->remote.leg0_wheel_speed;
-    remote_msg.leg1_wheel_speed = legs_state->remote.leg1_wheel_speed;
-    remote_msg.leg2_wheel_speed = legs_state->remote.leg2_wheel_speed;
-    remote_msg.leg3_wheel_speed = legs_state->remote.leg3_wheel_speed;
+    remote_msg.leg0_wheel_speed = legs_state->remote.wheel_speed;
+    remote_msg.leg1_wheel_speed = legs_state->remote.wheel_speed;
+    remote_msg.leg2_wheel_speed = legs_state->remote.wheel_speed;
+    remote_msg.leg3_wheel_speed = legs_state->remote.wheel_speed;
     remote_pub->publish(remote_msg);
 
     geometry_msgs::msg::PoseStamped imu_msg;
