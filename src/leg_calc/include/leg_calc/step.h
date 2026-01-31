@@ -3,6 +3,7 @@
 
 #include <Eigen/Dense>
 #include <tuple>
+#include <functional>
 
 typedef Eigen::Vector2d Vector2D;
 typedef Eigen::Vector3d Vector3D;
@@ -53,9 +54,14 @@ public:
 
 
     LegStep();
-    void update_flight_trajectory(const Vector3D& cur_pos, const Vector3D& cur_vel, const Vector2D& exp_vel, const double time, const double step_height,const double target_height=0.0);
+    void update_flight_trajectory(const Vector3D& cur_pos, const Vector3D& cur_vel, const Vector2D& exp_vel, const double time, const double step_height,const double target_height=0.0,const double x_offset=0.0,const double y_offset=0.0);
     void update_flight_trajectory(
         const Vector3D& cur_pos, const Vector3D& cur_vel, const Vector3D& exp_pos, const Vector2D& exp_vel, const double time, const double step_height);
+    // 带回调函数的重载版本：在摆动相最高点时重新规划落足点
+    void update_flight_trajectory(
+        const Vector3D& cur_pos, const Vector3D& cur_vel, const Vector2D& exp_vel, const double time, const double step_height,
+        std::function<Vector3D(const Vector3D&)> replanning_callback,
+        const double target_height=0.0, const double x_offset=0.0, const double y_offset=0.0);
     void update_support_trajectory(const Vector3D& cur_pos, const Vector2D& exp_vel, double time);
     void update_support_trajectory(const Vector3D& cur_pos, const Vector3D final_pos, double time);
     std::tuple<Vector3D, Vector3D, Vector3D> get_target(double time,bool &success);
@@ -65,6 +71,12 @@ private:
     bool support_trajectory_is_available{false};
     StepTrajectory_t flight_trajectory;
     SupportTrajectory_t support_trajectory;
+    
+    // 中途重新规划相关变量
+    bool needs_mid_replanning{false};           // 是否需要中途重新规划
+    bool mid_replanning_done{false};            // 是否已完成中途重新规划
+    Vector3D initial_target_pos;                // 初始规划的落足点
+    std::function<Vector3D(const Vector3D&)> replanning_callback; // 重新规划回调函数
 };
 
 #endif
