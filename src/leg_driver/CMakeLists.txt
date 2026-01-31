@@ -51,6 +51,12 @@ target_include_directories(leg_driver
   PUBLIC
   ${LIBUSB_INCLUDE_DIRS}
 )
+target_include_directories(leg_driver
+  PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/leg_calc>
+  $<INSTALL_INTERFACE:include>
+)
+
 
 target_link_directories(leg_driver
   PUBLIC
