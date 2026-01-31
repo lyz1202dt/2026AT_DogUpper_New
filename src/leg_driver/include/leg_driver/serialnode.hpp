@@ -7,7 +7,8 @@
 #include <robot_interfaces/msg/robot.hpp>
 #include "data_pack.h"
 #include <thread>
-
+#include "sensor_msgs/msg/imu.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
 
 class SerialNode : public rclcpp::Node
 {
@@ -28,11 +29,12 @@ private:
 
     std::unique_ptr<CDCTrans> cdc_trans;
     std::unique_ptr<std::thread> usb_event_handle_thread;
-    std::unique_ptr<std::thread> target_send_thread;
     MotorTargetPack_t legs_target;
     rclcpp::Publisher<robot_interfaces::msg::Robot>::SharedPtr robot_pub;
     rclcpp::Subscription<robot_interfaces::msg::Robot>::SharedPtr robot_sub;
-
+    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr imu_pub;
+    rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr imu_angular_vel_pub;
+    
     OnSetParametersCallbackHandle::SharedPtr param_server_;
 
     double joint_kp[3],joint_kd[3];

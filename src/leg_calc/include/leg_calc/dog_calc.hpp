@@ -8,6 +8,7 @@
 #include <chrono>
 #include <ctime>
 #include <geometry_msgs/msg/detail/twist__struct.hpp>
+#include <geometry_msgs/msg/detail/vector3__struct.hpp>
 #include <geometry_msgs/msg/point.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <kdl/chain.hpp>
@@ -30,7 +31,8 @@
 #include <tf2_ros/transform_broadcaster.h>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <geometry_msgs/msg/twist.hpp>
-#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Matrix3x3.hpp>
+#include <tf2/LinearMath/Quaternion.hpp>
 
 
 
@@ -40,15 +42,14 @@ public:
     ~RobotCalcNode();
 
 
-    enum DogState {                // 机器人状态机
+    enum DogState {                //机器人底层状态(控制机器人前进，后退，自旋，姿态,或者更底层的操作比如设置落脚点)
         DOG_IDEL,
         DOG_STOP,
         DOG_STARTING,
         DOG_SETP,
         DOG_ENDING,
 
-        DOG_CLIMB_STEPS,   //登上台阶
-        DOG_CROSS_WALL     //跨越墙体任务
+        DOG_SETUP
     };
 
     enum DogReqState{  //请求的机器人状态
@@ -57,15 +58,25 @@ public:
         DOG_REQ_RUN
     };
 
+    static constexpr double WHEEL_RADIUS = 0.065;
+
 private:
 
     void show_callback();
-    std::tuple<Vector3D, Vector3D, Vector3D> signal_leg_calc(
-        const Vector3D& exp_cart_pos, const Vector3D& exp_cart_vel, const Vector3D& exp_cart_acc, const Vector3D& exp_cart_force,
-        std::shared_ptr<LegCalc> leg_calc);
     void legs_update();
+
+
+    std::tuple<Vector3D,Vector3D,Vector3D,Vector3D> balance_force_calc(double cur_roll,double cur_pitch,double exp_roll=0.0,double exp_pitch=0.0);
+    robot_interfaces::msg::Leg signal_leg_calc(
+    const Vector3D& exp_cart_pos, const Vector3D& exp_cart_vel, const Vector3D& exp_cart_acc, const Vector3D& exp_cart_force,
+    std::shared_ptr<LegCalc> leg_calc,Vector3D *torque,double wheel_vel=0.0,double wheel_force=0.0);
+    
+
     static void quaternionLowPassFilter(double& w,  double& x,  double& y,  double& z,double  w1, double  x1, double  y1, double  z1,double alpha);
     Vector3D get_grivate_center_pose(const Vector3D &lf_joint_pos,const Vector3D &rf_joint_pos,const Vector3D &lb_joint_pos,const Vector3D &rb_joint_pos);
+    
+    
+
     rclcpp::Node::SharedPtr node_;
     rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_server_;
 
@@ -74,7 +85,8 @@ private:
     std::shared_ptr<VMC> lb_z_vmc, lb_x_vmc, lb_y_vmc;
     std::shared_ptr<VMC> rb_z_vmc, rb_x_vmc, rb_y_vmc;
 
-    bool enable_vmc{false};
+    std::shared_ptr<SimpleVMC> roll_vmc,pitch_vmc;
+
     double direction_filter_gate{0.8};
     
     rclcpp::TimerBase::SharedPtr ui_update_timer;
@@ -84,6 +96,7 @@ private:
     rclcpp::Subscription<robot_interfaces::msg::Robot>::SharedPtr legs_state_sub;
     rclcpp::Subscription<robot_interfaces::msg::MoveCmd>::SharedPtr move_cmd_sub;
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr imu_sub;
+    rclcpp::Subscription<geometry_msgs::msg::Vector3>::SharedPtr imu_angular_vel_sub;
     rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr rviz_joint_publisher;
     rclcpp::SyncParametersClient::SharedPtr robot_description_param_;
     std::unique_ptr<tf2_ros::TransformBroadcaster> robot_tf_broadcaster;
@@ -109,8 +122,7 @@ private:
 
     double step_time{0.8};  //整个对角步态全程的时间
     double step_height{0.08};
-    double foot_base_height{0.0};
-    double foot_pos_base_offset{-0.25};
+    double body_height{0.25};
     double step_support_rate{0.55};
     rclcpp::Time main_phrase_start_time,slave_phrase_start_time;   //第一、二相位步态开始时间
     rclcpp::Time slave_phrase_stop_time;
@@ -128,6 +140,11 @@ private:
     Eigen::Vector3d rf_forward_torque, rf_joint_torque;
     Eigen::Vector3d lb_forward_torque, lb_joint_torque;
     Eigen::Vector3d rb_forward_torque, rb_joint_torque;
+    Eigen::Vector3d lf_base_offset,rf_base_offset,lb_base_offset,rb_base_offset;
+    double roll_offset_virtual_torque{0.0};
+    double pitch_offset_virtual_torque{0.0};
+    double roll_balance_force_compen{0.0};
+    double pitch_balance_force_compen{0.0};
     int rviz2_update_cnt{0};
 
     Eigen::Vector3d lf_leg_stop_pos,rf_leg_stop_pos,lb_leg_stop_pos,rb_leg_stop_pos;
@@ -136,17 +153,23 @@ private:
     Vector3D comm_pos;
 
     // 机器人状态
-    DogState robot_state{DOG_IDEL};
+    DogState robot_state{DOG_SETUP};
     DogReqState robot_req_state{DOG_REQ_IDEL}; //请求的机器人状态
     double robot_lf_grivate{0.0};
     double robot_rf_grivate{0.0};
     double robot_lb_grivate{0.0};
     double robot_rb_grivate{0.0};
-    double robot_lf_dx{0.25};
-    double robot_rf_dx{0.25};
-    double robot_lb_dx{-0.23};
-    double robot_rb_dx{-0.23};
+    double exp_roll,exp_pitch;
     
+
     tf2::Quaternion robot_rotation;                    //机器人姿态
     geometry_msgs::msg::Twist robot_velocity;          //机器人速度信息
+
+
+
+    //启动过程
+    bool legs_state_updated{false};
+    bool trajectory_calced{false};
+    int setup_stage{0};
+    rclcpp::Time setup_time;
 };

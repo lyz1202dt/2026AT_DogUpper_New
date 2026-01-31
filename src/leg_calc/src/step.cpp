@@ -75,7 +75,7 @@ void LegStep::update_support_trajectory(const Vector3D& cur_pos, const Vector3D 
 }
 
 void LegStep::update_flight_trajectory(
-    const Vector3D& cur_pos, const Vector3D& cur_vel, const Vector2D& exp_vel, double time, double step_height) {
+    const Vector3D& cur_pos, const Vector3D& cur_vel, const Vector2D& exp_vel, const double time, const double step_height,const double target_height) {
     double target_x = exp_vel[0] * time * 0.5;
     double target_y = exp_vel[1] * time * 0.5;
 
@@ -91,14 +91,14 @@ void LegStep::update_flight_trajectory(
     set_quintic(flight_trajectory.l1_z, cur_pos[2], cur_vel[2], 0.0, step_height, 0.0, 0.0, time * 0.5f);
 
     // 第二段：从最高点落到地面
-    set_quintic(flight_trajectory.l2_z, step_height, 0.0, 0.0, 0.0, 0.0, 0.0, time * 0.5f);
+    set_quintic(flight_trajectory.l2_z, step_height, 0.0, 0.0, target_height, 0.0, 0.0, time * 0.5f);
 
     flight_trajectory_is_available  = true;
     support_trajectory_is_available = false;
 }
 
 void LegStep::update_flight_trajectory(
-    const Vector3D& cur_pos, const Vector3D& cur_vel, const Vector3D& exp_pos, const Vector2D& exp_vel, double time, double step_height) {
+    const Vector3D& cur_pos, const Vector3D& cur_vel, const Vector3D& exp_pos, const Vector2D& exp_vel, const double time, const double step_height) {
 
     flight_trajectory.time = time;
 

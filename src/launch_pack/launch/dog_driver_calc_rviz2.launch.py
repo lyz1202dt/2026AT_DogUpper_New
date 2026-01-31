@@ -6,7 +6,7 @@ import os
 def generate_launch_description():
     urdf_path = os.path.join(
         get_package_share_directory("dog"),
-        "urdf", "dog.urdf"
+        "model", "dog.urdf"
     )
     # 读取URDF内容
     with open(urdf_path, 'r') as inf:
