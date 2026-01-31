@@ -18,6 +18,7 @@
 #include <visualization_msgs/msg/marker.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 #include <robot_interfaces/msg/remote_cmd.hpp>
+#include <algorithm>
 using namespace std::chrono_literals;
 
 RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
@@ -298,21 +299,18 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
             }
         });
 
-   // 替换原代码中 remote_cmd_sub 的创建逻辑
     remote_cmd_sub = node_->create_subscription<robot_interfaces::msg::RemoteCmd>(
-    "remote_move_cmd", 10, [this](const robot_interfaces::msg::RemoteCmd& msg) {
-        // 核心：将只读的远程指令拷贝到类成员变量（const 不可直接修改，只能拷贝）
-        this->remote_vx_ = msg.rob_vx;
-        this->remote_vy_ = msg.rob_vy;
-        this->remote_omega_z_ = msg.rob_omega_z;
-        // 四轮转速
-        this->remote_leg0_wheel_ = msg.leg0_wheel_speed;
-        this->remote_leg1_wheel_ = msg.leg1_wheel_speed;
-        this->remote_leg2_wheel_ = msg.leg2_wheel_speed;
-        this->remote_leg3_wheel_ = msg.leg3_wheel_speed;
-        // 标记已收到远程指令
+    "robot_move_cmd", 10, [this](const robot_interfaces::msg::RemoteCmd& msg) {
+        this->remote_vx_ = std::clamp(msg.rob_vx, -1.0f, 1.0f); // 机身x向速度：-0.5~0.5m/s
+        this->remote_vy_ = std::clamp(msg.rob_vy, -1.0f, 1.0f); // 机身y向速度：-0.3~0.3m/s
+        this->remote_omega_z_ = std::clamp(msg.rob_omega_z, -1.0f, 1.0f); // 偏航角速度：-1~1rad/s
+        this->remote_leg0_wheel_ = std::clamp(msg.leg0_wheel_speed, -10.0f, 10.0f);
+        this->remote_leg1_wheel_ = std::clamp(msg.leg1_wheel_speed, -10.0f, 10.0f);
+        this->remote_leg2_wheel_ = std::clamp(msg.leg2_wheel_speed, -10.0f, 10.0f);
+        this->remote_leg3_wheel_ = std::clamp(msg.leg3_wheel_speed, -10.0f, 10.0f);
         this->has_remote_cmd_ = true;
         this->last_remote_cmd_time_= node_->get_clock()->now();
+        
     });
 
     // 订阅机器人的运动期望

@@ -58,7 +58,6 @@ typedef struct{
 typedef struct{
     float vx;
     float vy;
-    float vz;
     float omega_z;
     float wheel_speed; 
 }Remote_pack_t;
