@@ -185,5 +185,6 @@ private:
     //翻过高墙
     int cross_wall_stage{0};
     rclcpp::Time cross_wall_stage_time;
-    Vector3D wall_lf_joint_pos,wall_rf_joint_pos,wall_lb_joint_pos,wall_rb_joint_pos;
+    Vector3D wall_lf_foot_pos,wall_rf_foot_pos,wall_lb_foot_pos,wall_rb_foot_pos;
+    bool enable_posture_safe{true};
 };

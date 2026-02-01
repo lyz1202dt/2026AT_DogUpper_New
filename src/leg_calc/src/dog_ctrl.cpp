@@ -135,7 +135,7 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
                 roll_balance_step_compen = param.as_double();
             } else if (name == "pitch_balance_step_compen") {
                 pitch_balance_step_compen = param.as_double();
-            }else if (name == "pitch_vmc_kp") {
+            } else if (name == "pitch_vmc_kp") {
                 pitch_vmc->kp = param.as_double();
             } else if (name == "pitch_vmc_kd") {
                 pitch_vmc->kd = param.as_double();
@@ -355,10 +355,8 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
                 rb_exp_vel    = Vector2D(v_rb[0], v_rb[1]);
             } else if (msg.step_mode == DOG_REQ_IDEL) {
                 robot_req_state = DOG_REQ_IDEL;
-            }
-            else if(msg.step_mode==DOG_REQ_CROSS_WALL)
-            {
-                robot_req_state=DOG_REQ_CROSS_WALL;
+            } else if (msg.step_mode == DOG_REQ_CROSS_WALL) {
+                robot_req_state = DOG_REQ_CROSS_WALL;
             }
             // RCLCPP_INFO(node_->get_logger(), "接收到期望更新消息:lf:(%lf,%lf),type=%d", lf_exp_vel[0], lf_exp_vel[1], msg.step_mode);
         });
@@ -577,7 +575,7 @@ void RobotCalcNode::legs_update() {
 
 
     if ((cur_roll > 40 * 3.14 / 180 || cur_roll < -40 * 3.14 / 180 || cur_pitch > 50 * 3.14 / 180 || cur_pitch < -50 * 3.14 / 180)
-        && robot_state != DOG_SETUP)                           // 防止机器人失控倾倒，倾倒时强制切换为位控站立状态
+        && robot_state != DOG_SETUP&&enable_posture_safe)                           // 防止机器人失控倾倒，倾倒时强制切换为位控站立状态
         robot_state = DOG_IDEL;
 
     if (robot_state == DOG_SETUP)                              // 首次进入的模式，狗上电启动
@@ -665,7 +663,8 @@ void RobotCalcNode::legs_update() {
         Vector3D lf_foot_exp_force, rf_foot_exp_force, lb_foot_exp_force, rb_foot_exp_force;
         Vector3D lf_foot_exp_vel, rf_foot_exp_vel, lb_foot_exp_vel, rb_foot_exp_vel;
         Vector3D lf_foot_exp_acc, rf_foot_exp_acc, lb_foot_exp_acc, rb_foot_exp_acc;
-        std::tie(lf_foot_exp_force, rf_foot_exp_force, lb_foot_exp_force, rb_foot_exp_force) = balance_force_calc(cur_roll, cur_pitch,exp_roll,exp_pitch);
+        std::tie(lf_foot_exp_force, rf_foot_exp_force, lb_foot_exp_force, rb_foot_exp_force) =
+            balance_force_calc(cur_roll, cur_pitch, exp_roll, exp_pitch);
 
         lf_foot_exp_pos = lf_leg_stop_pos;
         rf_foot_exp_pos = rf_leg_stop_pos;
@@ -716,8 +715,8 @@ void RobotCalcNode::legs_update() {
             robot_state = DOG_STARTING;
         else if (robot_req_state == DOG_REQ_IDEL)
             robot_state = DOG_IDEL;
-        else if(robot_req_state==DOG_REQ_CROSS_WALL)
-            robot_state=DOG_CROSSWALL;
+        else if (robot_req_state == DOG_REQ_CROSS_WALL)
+            robot_state = DOG_CROSSWALL;
     } else if (robot_state == DOG_STARTING) { // 狗处于开始前进状态，规划一次初相位轨迹
         auto now                = node_->get_clock()->now();
         main_phrase_start_time  = now;
@@ -790,8 +789,7 @@ void RobotCalcNode::legs_update() {
                 // 使用带回调函数的重载版本，在飞行到中点时重新规划落足点
                 lf_leg_step.update_flight_trajectory(
                     lf_leg_calc->foot_pos(lf_joint_pos), -Vector3D(lf_exp_vel[0], lf_exp_vel[1], 0.0), lf_exp_vel,
-                    step_time * (1.0 - step_support_rate), step_height,
-                    [this](const Vector3D& initial_target) -> Vector3D {
+                    step_time * (1.0 - step_support_rate), step_height, [this](const Vector3D& initial_target) -> Vector3D {
                         // 在飞行中点根据姿态偏差修正落足点
                         Vector3D new_target = initial_target;
                         new_target[0] += -(exp_pitch - cur_pitch) * pitch_balance_step_compen;
@@ -801,8 +799,7 @@ void RobotCalcNode::legs_update() {
                 // 主相对角腿也需要规划飞行轨迹（右后）
                 rb_leg_step.update_flight_trajectory(
                     rb_leg_calc->foot_pos(rb_joint_pos), -Vector3D(rb_exp_vel[0], rb_exp_vel[1], 0.0), rb_exp_vel,
-                    step_time * (1.0 - step_support_rate), step_height,
-                    [this](const Vector3D& initial_target) -> Vector3D {
+                    step_time * (1.0 - step_support_rate), step_height, [this](const Vector3D& initial_target) -> Vector3D {
                         // 在飞行中点根据姿态偏差修正落足点
                         Vector3D new_target = initial_target;
                         new_target[0] += -(exp_pitch - cur_pitch) * pitch_balance_step_compen;
@@ -856,8 +853,7 @@ void RobotCalcNode::legs_update() {
                 // 使用带回调函数的重载版本，在飞行到中点时重新规划落足点
                 rf_leg_step.update_flight_trajectory(
                     rf_leg_calc->foot_pos(rf_joint_pos), -Vector3D(rf_exp_vel[0], rf_exp_vel[1], 0.0), rf_exp_vel,
-                    (1.0 - step_support_rate) * step_time, step_height,
-                    [this](const Vector3D& initial_target) -> Vector3D {
+                    (1.0 - step_support_rate) * step_time, step_height, [this](const Vector3D& initial_target) -> Vector3D {
                         // 在飞行中点根据姿态偏差修正落足点
                         Vector3D new_target = initial_target;
                         new_target[0] += -(exp_pitch - cur_pitch) * pitch_balance_step_compen;
@@ -866,8 +862,7 @@ void RobotCalcNode::legs_update() {
                     });
                 lb_leg_step.update_flight_trajectory(
                     lb_leg_calc->foot_pos(lb_joint_pos), -Vector3D(lb_exp_vel[0], lb_exp_vel[1], 0.0), lb_exp_vel,
-                    (1.0 - step_support_rate) * step_time, step_height,
-                    [this](const Vector3D& initial_target) -> Vector3D {
+                    (1.0 - step_support_rate) * step_time, step_height, [this](const Vector3D& initial_target) -> Vector3D {
                         // 在飞行中点根据姿态偏差修正落足点
                         Vector3D new_target = initial_target;
                         new_target[0] += -(exp_pitch - cur_pitch) * pitch_balance_step_compen;
@@ -999,91 +994,113 @@ void RobotCalcNode::legs_update() {
         Vector3D lf_foot_exp_force, rf_foot_exp_force, lb_foot_exp_force, rb_foot_exp_force;
         Vector3D lf_foot_exp_vel, rf_foot_exp_vel, lb_foot_exp_vel, rb_foot_exp_vel;
         Vector3D lf_foot_exp_acc, rf_foot_exp_acc, lb_foot_exp_acc, rb_foot_exp_acc;
-        if (cross_wall_stage == 0) {       // 设置姿态目标
-            cross_wall_stage_time = node_->get_clock()->now();
-            cross_wall_stage      = 1;
-            exp_pitch             = -0.1;
-            exp_roll              = -0.05;
-            RCLCPP_INFO(node_->get_logger(),"设置准备姿态");
-        }
-        if (cross_wall_stage == 1)         // 执行设置的姿态目标，调整质心位置，使其落在支撑多边形内
-        {
-            if ((node_->get_clock()->now() - cross_wall_stage_time).seconds() > 6.0) {
-                lf_leg_step.update_support_trajectory(lf_joint_pos, Vector3D(0.0, -1.57, -0.2), 4);
-                cross_wall_stage_time = node_->get_clock()->now();
-                cross_wall_stage      = 2;
-                RCLCPP_INFO(node_->get_logger(),"抬腿轨迹1");
-            } else {    //等待调姿
-                std::tie(lf_foot_exp_force, rf_foot_exp_force, lb_foot_exp_force, rb_foot_exp_force) =
-                    balance_force_calc(cur_roll, cur_pitch, exp_roll, exp_pitch);
-                robot_interfaces::msg::Robot joints_target;
-                joints_target.legs[0] =
-                    signal_leg_calc(lf_foot_exp_pos, lf_foot_exp_vel, lf_foot_exp_acc, lf_foot_exp_force, lf_leg_calc, &lf_forward_torque);
-                joints_target.legs[1] =
-                    signal_leg_calc(rf_foot_exp_pos, rf_foot_exp_vel, rf_foot_exp_acc, rf_foot_exp_force, rf_leg_calc, &rf_forward_torque);
-                joints_target.legs[2] =
-                    signal_leg_calc(lb_foot_exp_pos, lb_foot_exp_vel, lb_foot_exp_acc, lb_foot_exp_force, lb_leg_calc, &lb_forward_torque);
-                joints_target.legs[3] =
-                    signal_leg_calc(rb_foot_exp_pos, rb_foot_exp_vel, rb_foot_exp_acc, rb_foot_exp_force, rb_leg_calc, &rb_forward_torque);
-                legs_target_pub->publish(joints_target);
-            }
-        }
-        if (cross_wall_stage == 2)         // 左前褪足端位置跟踪
-        {
-            std::tie(lf_foot_exp_force, rf_foot_exp_force, lb_foot_exp_force, rb_foot_exp_force) =
-                balance_force_calc(cur_roll, cur_pitch, exp_roll, exp_pitch);
-            robot_interfaces::msg::Robot joints_target;
+        if (cross_wall_stage == 0) {       //设置腿长调节姿态
+            enable_posture_safe=false;
+            body_height=0.23;
+            wall_lf_foot_pos=lf_leg_calc->foot_pos(lf_joint_pos);
+            wall_rf_foot_pos=rf_leg_calc->foot_pos(rf_joint_pos);
+            wall_lb_foot_pos=lb_leg_calc->foot_pos(lb_joint_pos);
+            wall_rb_foot_pos=rb_leg_calc->foot_pos(rb_joint_pos);
 
-            bool success   = false;
-            auto lf_target = lf_leg_step.get_target((node_->get_clock()->now() - cross_wall_stage_time).seconds(), success);
-            for (int i = 0; i < 3; i++) {
-                joints_target.legs[0].joints[i].rad   = static_cast<float>(std::get<0>(lf_target)[i]);
-                joints_target.legs[0].joints[i].omega = static_cast<float>(std::get<1>(lf_target)[i]);
-            }
-            if (success) {
-                joints_target.legs[1] =
-                    signal_leg_calc(rf_foot_exp_pos, rf_foot_exp_vel, rf_foot_exp_acc, rf_foot_exp_force, rf_leg_calc, &rf_forward_torque);
-                joints_target.legs[2] =
-                    signal_leg_calc(lb_foot_exp_pos, lb_foot_exp_vel, lb_foot_exp_acc, lb_foot_exp_force, lb_leg_calc, &lb_forward_torque);
-                joints_target.legs[3] =
-                    signal_leg_calc(rb_foot_exp_pos, rb_foot_exp_vel, rb_foot_exp_acc, rb_foot_exp_force, rb_leg_calc, &rb_forward_torque);
-                legs_target_pub->publish(joints_target);
-            } else {
-                RCLCPP_INFO(node_->get_logger(),"抬腿轨迹2");
-                cross_wall_stage = 3;
-                lf_leg_step.update_support_trajectory(lf_joint_pos, Vector3D(0.0, -0.5, -0.2), 4);
-                cross_wall_stage_time = node_->get_clock()->now();
-            }
-        }
-        if (cross_wall_stage == 3)
-        {
-            std::tie(lf_foot_exp_force, rf_foot_exp_force, lb_foot_exp_force, rb_foot_exp_force) =
-                balance_force_calc(cur_roll, cur_pitch, exp_roll, exp_pitch);
-            robot_interfaces::msg::Robot joints_target;
+            lf_leg_step.update_support_trajectory(wall_lf_foot_pos,Vector3D(0.0,0.0,-0.1),2.0);
+            rf_leg_step.update_support_trajectory(wall_rf_foot_pos,Vector3D(0.0,0.0,0.0),2.0);
+            lb_leg_step.update_support_trajectory(wall_lb_foot_pos,Vector3D(0.0,0.0,0.0),2.0);
+            rb_leg_step.update_support_trajectory(wall_rb_foot_pos,Vector3D(0.0,0.0,0.1),2.0);
+            cross_wall_stage_time=node_->get_clock()->now();
 
-            bool success   = false;
-            auto lf_target = lf_leg_step.get_target((node_->get_clock()->now() - cross_wall_stage_time).seconds(), success);
-            for (int i = 0; i < 3; i++) {
-                joints_target.legs[0].joints[i].rad   = static_cast<float>(std::get<0>(lf_target)[i]);
-                joints_target.legs[0].joints[i].omega = static_cast<float>(std::get<1>(lf_target)[i]);
-            }
-            if (success) {
-                joints_target.legs[1] =
-                    signal_leg_calc(rf_foot_exp_pos, rf_foot_exp_vel, rf_foot_exp_acc, rf_foot_exp_force, rf_leg_calc, &rf_forward_torque);
-                joints_target.legs[2] =
-                    signal_leg_calc(lb_foot_exp_pos, lb_foot_exp_vel, lb_foot_exp_acc, lb_foot_exp_force, lb_leg_calc, &lb_forward_torque);
-                joints_target.legs[3] =
-                    signal_leg_calc(rb_foot_exp_pos, rb_foot_exp_vel, rb_foot_exp_acc, rb_foot_exp_force, rb_leg_calc, &rb_forward_torque);
-                legs_target_pub->publish(joints_target);
-            } else {
-                RCLCPP_INFO(node_->get_logger(),"保持...");
-                cross_wall_stage = 4;
+            cross_wall_stage=1;     //无条件跳转到状态1
+        }
+        if (cross_wall_stage == 1)         // 执行设置的腿长，调整质心位置，使其落在支撑三角形内
+        {
+            bool success=false;
+            double time=(node_->get_clock()->now()-cross_wall_stage_time).seconds();
+            std::tie(lf_foot_exp_pos,lf_foot_exp_vel,lf_foot_exp_acc)=lf_leg_step.get_target(time, success);
+            std::tie(rf_foot_exp_pos,rf_foot_exp_vel,rf_foot_exp_acc)=rf_leg_step.get_target(time, success);
+            std::tie(lb_foot_exp_pos,lb_foot_exp_vel,lb_foot_exp_acc)=lb_leg_step.get_target(time, success);
+            std::tie(rb_foot_exp_pos,rb_foot_exp_vel,rb_foot_exp_acc)=rb_leg_step.get_target(time, success);
+            if(!success)
+            {
+                wall_rf_foot_pos=rf_foot_exp_pos;
+                wall_lb_foot_pos=lb_foot_exp_pos;
+                wall_rb_foot_pos=rb_foot_exp_pos;
+                lf_leg_step.update_support_trajectory(wall_lf_foot_pos,Vector3D(-0.03,0.08,0.15),4.0);
+                cross_wall_stage_time=node_->get_clock()->now();
+                cross_wall_stage=2;     //轨迹执行完后跳转到状态2
             }
         }
+        if (cross_wall_stage == 2){
+            bool success=false;
+            double time=(node_->get_clock()->now()-cross_wall_stage_time).seconds();
+            std::tie(lf_foot_exp_pos,lf_foot_exp_vel,lf_foot_exp_acc)=lf_leg_step.get_target(time, success);
+            rf_foot_exp_pos=wall_rf_foot_pos;
+            lb_foot_exp_pos=wall_lb_foot_pos;
+            rb_foot_exp_pos=wall_rb_foot_pos;
+            if(!success)
+            {
+                wall_lf_foot_pos=lf_foot_exp_pos;
+                lf_leg_step.update_support_trajectory(Vector3D(-0.03,0.1,0.15),Vector3D(0.35,0.1,0.24),4.0);
+                cross_wall_stage_time=node_->get_clock()->now();
+                cross_wall_stage=3;
+            }
+        }
+        if (cross_wall_stage == 3) {
+            bool success=false;
+            double time=(node_->get_clock()->now()-cross_wall_stage_time).seconds();
+            std::tie(lf_foot_exp_pos,lf_foot_exp_vel,lf_foot_exp_acc)=lf_leg_step.get_target(time, success);
+            rf_foot_exp_pos=wall_rf_foot_pos;
+            lb_foot_exp_pos=wall_lb_foot_pos;
+            rb_foot_exp_pos=wall_rb_foot_pos;
+            if(!success)
+            {
+                wall_lf_foot_pos=lf_foot_exp_pos;
+                lf_leg_step.update_support_trajectory(Vector3D(0.35,0.1,0.2),Vector3D(0.35,0.0,0.23),4.0);
+                cross_wall_stage_time=node_->get_clock()->now();
+                cross_wall_stage=4;
+            }
+        }
+        if(cross_wall_stage==4){
+            //TODO:足端移动到正前方
+            lf_foot_exp_pos=wall_lf_foot_pos;
+            rf_foot_exp_pos=wall_rf_foot_pos;
+            lb_foot_exp_pos=wall_lb_foot_pos;
+            rb_foot_exp_pos=wall_rb_foot_pos;
+        }
+        if(cross_wall_stage==5){
+            //TODO:规划一条直线并执行让右前褪搭到高墙上
+        }
+        if(cross_wall_stage==6){
+            //TODO:前腿足端向后移动，拉动狗子向前移动
+        }
+        if(cross_wall_stage==7){
+            //左前褪向前摆动到支撑相中性点
+        }
+        if(cross_wall_stage==8){
+            //右前褪向前摆动到支撑相中性点
+        }
+        if(cross_wall_stage==9){
+            //左后腿和右后腿足端从下面上升到水平位置
+        }
+        if(cross_wall_stage==10){
+            //左后腿和右后腿足端向前摆动知道超过高墙位置（此时狗子腹部靠后位置支撑在墙上）
+        }
+        if(cross_wall_stage==11){
+            //依靠大腿推动狗身继续前进知道越过高墙
+        }
+
+        robot_interfaces::msg::Robot joints_target;
+        joints_target.legs[0] =
+            signal_leg_calc(lf_foot_exp_pos, lf_foot_exp_vel, lf_foot_exp_acc, lf_foot_exp_force, lf_leg_calc, &lf_forward_torque);
+        joints_target.legs[1] =
+            signal_leg_calc(rf_foot_exp_pos, rf_foot_exp_vel, rf_foot_exp_acc, rf_foot_exp_force, rf_leg_calc, &rf_forward_torque);
+        joints_target.legs[2] =
+            signal_leg_calc(lb_foot_exp_pos, lb_foot_exp_vel, lb_foot_exp_acc, lb_foot_exp_force, lb_leg_calc, &lb_forward_torque);
+        joints_target.legs[3] =
+            signal_leg_calc(rb_foot_exp_pos, rb_foot_exp_vel, rb_foot_exp_acc, rb_foot_exp_force, rb_leg_calc, &rb_forward_torque);
+        legs_target_pub->publish(joints_target);
     }
 
 
-    //TF变换更新
+    // TF变换更新
     geometry_msgs::msg::TransformStamped t;
     t.header.stamp            = node_->get_clock()->now();
     t.header.frame_id         = "world";
