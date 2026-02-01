@@ -70,11 +70,9 @@ private:
     void show_callback();
     void legs_update();
 
-
-    std::tuple<Vector3D,Vector3D,Vector3D,Vector3D> balance_force_calc(double cur_roll,double cur_pitch,double exp_roll=0.0,double exp_pitch=0.0);
-    robot_interfaces::msg::Leg signal_leg_calc(
-    const Vector3D& exp_cart_pos, const Vector3D& exp_cart_vel, const Vector3D& exp_cart_acc, const Vector3D& exp_cart_force,
-    std::shared_ptr<LegCalc> leg_calc,Vector3D *torque,double wheel_vel=0.0,double wheel_force=0.0);
+    std::tuple<Vector3D, Vector3D, Vector3D> signal_leg_calc(
+        const Vector3D& exp_cart_pos, const Vector3D& exp_cart_vel, const Vector3D& exp_cart_acc, const Vector3D& exp_cart_force,
+        std::shared_ptr<LegCalc> leg_calc);
     
 
     static void quaternionLowPassFilter(double& w,  double& x,  double& y,  double& z,double  w1, double  x1, double  y1, double  z1,double alpha);

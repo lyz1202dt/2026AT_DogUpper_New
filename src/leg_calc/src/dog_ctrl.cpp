@@ -42,28 +42,28 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     roll_vmc  = std::make_shared<SimpleVMC>(-200.0, 0.0, 100);
     pitch_vmc = std::make_shared<SimpleVMC>(500.0, 100.0, 100);
 
-    node_->declare_parameter("direction_filter_gate", 0.1);
-    node_->declare_parameter("vmc_kp", 100.0);
+    node_->declare_parameter("direction_filter_gate", 0.2);
+    node_->declare_parameter("vmc_kp", 200.0);
     node_->declare_parameter("vmc_kd", 120.0);
     node_->declare_parameter("vmc_mass", 0.5);
 
     node_->declare_parameter("horizontal_vmc_kp", 500.0);
-    node_->declare_parameter("horizontal_vmc_kd", 150.0);
+    node_->declare_parameter("horizontal_vmc_kd", 200.0);
     node_->declare_parameter("horizontal_vmc_mass", 3.0);
 
     node_->declare_parameter("roll_vmc_kp", -300.0);
-    node_->declare_parameter("roll_vmc_kd", -100.0);
+    node_->declare_parameter("roll_vmc_kd", 0.0);
     node_->declare_parameter("pitch_vmc_kp", 500.0);
-    node_->declare_parameter("pitch_vmc_kd", 200.0);
-    node_->declare_parameter("roll_balance_force_compen", -1.0);
-    node_->declare_parameter("pitch_balance_force_compen", -1.0);
-    node_->declare_parameter("roll_balance_step_compen", 1.0);
-    node_->declare_parameter("pitch_balance_step_compen", 1.0);
+    node_->declare_parameter("pitch_vmc_kd", 0.0);
+    node_->declare_parameter("roll_balance_force_compen", 1.0);
+    node_->declare_parameter("pitch_balance_force_compen", 1.0);
+    node_->declare_parameter("roll_balance_step_compen", 0.35);
+    node_->declare_parameter("pitch_balance_step_compen", 0.35);
 
-    node_->declare_parameter("lf_grivate", 22.0);
-    node_->declare_parameter("rf_grivate", 22.0);
-    node_->declare_parameter("lb_grivate", 26.0);
-    node_->declare_parameter("rb_grivate", 26.0);
+    node_->declare_parameter("lf_grivate", 20.0);
+    node_->declare_parameter("rf_grivate", 20.0);
+    node_->declare_parameter("lb_grivate", 35.0);
+    node_->declare_parameter("rb_grivate", 35.0);
     node_->declare_parameter("lf_dx", 0.0);
     node_->declare_parameter("rf_dx", 0.0);
     node_->declare_parameter("lb_dx", -0.1);
@@ -77,7 +77,7 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
 
     node_->declare_parameter("target_roll", 0.0);       // 狗子期望的当前俯仰角
     node_->declare_parameter("target_pitch", 0.0);
-    node_->declare_parameter("body_height", 0.27);
+    node_->declare_parameter("body_height", 0.26);
 
 
     param_server_ = node_->add_on_set_parameters_callback([this](const std::vector<rclcpp::Parameter>& params) {
@@ -540,9 +540,9 @@ void RobotCalcNode::show_callback() {
     // RCLCPP_INFO(node_->get_logger(), "kp=%lf,kd=%lf,mass=%lf", vmc->kp, vmc->kd, vmc->mass);
 }
 
-robot_interfaces::msg::Leg RobotCalcNode::signal_leg_calc(
-    const Vector3D& exp_cart_pos, const Vector3D& exp_cart_vel, const Vector3D& exp_cart_acc, const Vector3D& exp_cart_force,
-    std::shared_ptr<LegCalc> leg_calc, Vector3D* torque, double wheel_vel, double wheel_force) {
+std::tuple<Vector3D, Vector3D, Vector3D> RobotCalcNode::signal_leg_calc(
+        const Vector3D& exp_cart_pos, const Vector3D& exp_cart_vel, const Vector3D& exp_cart_acc, const Vector3D& exp_cart_force,
+        std::shared_ptr<LegCalc> leg_calc) {
     Vector3D joint_pos, joint_omega, joint_torque;
 
     int result;
@@ -551,31 +551,74 @@ robot_interfaces::msg::Leg RobotCalcNode::signal_leg_calc(
     joint_torque = leg_calc->joint_torque_foot_force(joint_pos, exp_cart_force);
     joint_torque += leg_calc->joint_torque_dynamic(joint_pos, joint_omega, exp_cart_acc);
 
-    robot_interfaces::msg::Leg leg;
-    for (int i = 0; i < 3; i++) {
-        leg.joints[i].rad    = static_cast<float>(joint_pos[i]);
-        leg.joints[i].omega  = static_cast<float>(joint_omega[i]);
-        leg.joints[i].torque = static_cast<float>(joint_torque[i]);
-    }
-    leg.wheel.omega  = static_cast<float>(wheel_vel / WHEEL_RADIUS);
-    leg.wheel.torque = static_cast<float>(wheel_force * WHEEL_RADIUS);
-    *torque          = joint_torque;
-    return leg;
+    // robot_interfaces::msg::Leg leg;
+    // for (int i = 0; i < 3; i++) {
+    //     leg.joints[i].rad    = static_cast<float>(joint_pos[i]);
+    //     leg.joints[i].omega  = static_cast<float>(joint_omega[i]);
+    //     leg.joints[i].torque = static_cast<float>(joint_torque[i]);
+    // }
+    //leg.wheel.omega  = static_cast<float>(wheel_vel / WHEEL_RADIUS);
+    //leg.wheel.torque = static_cast<float>(wheel_force * WHEEL_RADIUS);
+    //*torque          = joint_torque;
+    return {joint_pos,joint_omega,joint_torque};
 }
 
 
 void RobotCalcNode::legs_update() {
+    auto lf_foot_exp_pos   = Vector3D(0.0, 0.0, 0.0);
+    auto lf_foot_exp_vel   = Vector3D(0.0, 0.0, 0.0);
+    auto lf_foot_exp_acc   = Vector3D(0.0, 0.0, 0.0);
+    auto lf_foot_exp_force = Vector3D(0.0, 0.0, 0.0);
+
+    auto rf_foot_exp_pos   = Vector3D(0.0, 0.0, 0.0);
+    auto rf_foot_exp_vel   = Vector3D(0.0, 0.0, 0.0);
+    auto rf_foot_exp_acc   = Vector3D(0.0, 0.0, 0.0);
+    auto rf_foot_exp_force = Vector3D(0.0, 0.0, 0.0);
+
+    auto lb_foot_exp_pos   = Vector3D(0.0, 0.0, 0.0);
+    auto lb_foot_exp_vel   = Vector3D(0.0, 0.0, 0.0);
+    auto lb_foot_exp_acc   = Vector3D(0.0, 0.0, 0.0);
+    auto lb_foot_exp_force = Vector3D(0.0, 0.0, 0.0);
+
+    auto rb_foot_exp_pos   = Vector3D(0.0, 0.0, 0.0);
+    auto rb_foot_exp_vel   = Vector3D(0.0, 0.0, 0.0);
+    auto rb_foot_exp_acc   = Vector3D(0.0, 0.0, 0.0);
+    auto rb_foot_exp_force = Vector3D(0.0, 0.0, 0.0);
+    
     lf_leg_calc->pos_offset = lf_base_offset;
     rf_leg_calc->pos_offset = rf_base_offset;
     lb_leg_calc->pos_offset = lb_base_offset;
     rb_leg_calc->pos_offset = rb_base_offset;
 
-    double cur_yaw;
-    tf2::Matrix3x3(robot_rotation).getRPY(cur_roll, cur_pitch, cur_yaw);
+    double cur_yaw_rubbsh;
+    tf2::Matrix3x3(robot_rotation).getRPY(cur_roll, cur_pitch, cur_yaw_rubbsh);
+    roll_offset_virtual_torque  = roll_vmc->update(cur_roll, robot_velocity.angular.x);
+    pitch_offset_virtual_torque = pitch_vmc->update(cur_pitch, robot_velocity.angular.y);
+
+    lf_foot_exp_force[2] += pitch_offset_virtual_torque * lf_leg_calc->pos_offset[0];
+    rf_foot_exp_force[2] += pitch_offset_virtual_torque * rf_leg_calc->pos_offset[0];
+    lb_foot_exp_force[2] += pitch_offset_virtual_torque * lb_leg_calc->pos_offset[0];
+    rb_foot_exp_force[2] += pitch_offset_virtual_torque * rb_leg_calc->pos_offset[0];
+
+    // lf_foot_exp_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
+    // rf_foot_exp_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
+    // lb_foot_exp_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
+    // rb_foot_exp_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
+
+    // TODO:计算四个足端的期望的平衡虚拟力(roll)
+    lf_foot_exp_force[2] += roll_offset_virtual_torque * lf_leg_calc->pos_offset[1];
+    rf_foot_exp_force[2] += roll_offset_virtual_torque * rf_leg_calc->pos_offset[1];
+    lb_foot_exp_force[2] += roll_offset_virtual_torque * lb_leg_calc->pos_offset[1];
+    rb_foot_exp_force[2] += roll_offset_virtual_torque * rb_leg_calc->pos_offset[1];
+
+    // lf_foot_exp_force[1] += pitch_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
+    // rf_foot_exp_force[1] += pitch_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
+    // lb_foot_exp_force[1] += pitch_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
+    // rb_foot_exp_force[1] += pitch_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
 
 
     if ((cur_roll > 40 * 3.14 / 180 || cur_roll < -40 * 3.14 / 180 || cur_pitch > 50 * 3.14 / 180 || cur_pitch < -50 * 3.14 / 180)
-        && robot_state != DOG_SETUP&&enable_posture_safe)                           // 防止机器人失控倾倒，倾倒时强制切换为位控站立状态
+        && robot_state != DOG_SETUP && enable_posture_safe)    // 防止机器人失控倾倒，倾倒时强制切换为位控站立状态
         robot_state = DOG_IDEL;
 
     if (robot_state == DOG_SETUP)                              // 首次进入的模式，狗上电启动
@@ -634,37 +677,21 @@ void RobotCalcNode::legs_update() {
             joints_target.legs[3].joints[i].rad = static_cast<float>(std::get<0>(rb_target)[i]);
         }
         legs_target_pub->publish(joints_target);
+        return ;
     }
 
 
 
     if (robot_state == DOG_IDEL)              // 单位置控制
     {
-        auto lf_foot_exp_pos = lf_leg_stop_pos = Vector3D(0.0, 0.0, 0.0);
-        auto rf_foot_exp_pos = rf_leg_stop_pos = Vector3D(0.0, 0.0, 0.0);
-        auto lb_foot_exp_pos = lb_leg_stop_pos = Vector3D(0.0, 0.0, 0.0);
-        auto rb_foot_exp_pos = rb_leg_stop_pos = Vector3D(0.0, 0.0, 0.0);
-
-        robot_interfaces::msg::Robot joints_target;
-        joints_target.legs[0] = signal_leg_calc(
-            lf_foot_exp_pos, Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero(), lf_leg_calc, &lf_forward_torque);
-        joints_target.legs[1] = signal_leg_calc(
-            rf_foot_exp_pos, Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero(), rf_leg_calc, &rf_forward_torque);
-        joints_target.legs[2] = signal_leg_calc(
-            lb_foot_exp_pos, Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero(), lb_leg_calc, &lb_forward_torque);
-        joints_target.legs[3] = signal_leg_calc(
-            rb_foot_exp_pos, Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero(), rb_leg_calc, &rb_forward_torque);
-        legs_target_pub->publish(joints_target);
+        lf_foot_exp_pos = lf_leg_stop_pos = Vector3D(0.0, 0.0, 0.0);
+        rf_foot_exp_pos = rf_leg_stop_pos = Vector3D(0.0, 0.0, 0.0);
+        lb_foot_exp_pos = lb_leg_stop_pos = Vector3D(0.0, 0.0, 0.0);
+        rb_foot_exp_pos = rb_leg_stop_pos = Vector3D(0.0, 0.0, 0.0);
 
         if (robot_req_state == DOG_REQ_STOP)
             robot_state = DOG_STOP;
     } else if (robot_state == DOG_STOP) {     // 狗保持站立
-        Vector3D lf_foot_exp_pos, rf_foot_exp_pos, lb_foot_exp_pos, rb_foot_exp_pos;
-        Vector3D lf_foot_exp_force, rf_foot_exp_force, lb_foot_exp_force, rb_foot_exp_force;
-        Vector3D lf_foot_exp_vel, rf_foot_exp_vel, lb_foot_exp_vel, rb_foot_exp_vel;
-        Vector3D lf_foot_exp_acc, rf_foot_exp_acc, lb_foot_exp_acc, rb_foot_exp_acc;
-        std::tie(lf_foot_exp_force, rf_foot_exp_force, lb_foot_exp_force, rb_foot_exp_force) =
-            balance_force_calc(cur_roll, cur_pitch, exp_roll, exp_pitch);
 
         lf_foot_exp_pos = lf_leg_stop_pos;
         rf_foot_exp_pos = rf_leg_stop_pos;
@@ -698,18 +725,6 @@ void RobotCalcNode::legs_update() {
         std::tie(rb_foot_exp_pos[2], rb_foot_exp_vel[2], rb_foot_exp_acc[2]) =
             rb_z_vmc->targetUpdate(0.0, rb_cart_pos[2], 0.0, rb_cart_vel[2], -rb_cart_force[2]);
         rb_foot_exp_force += Vector3D(0.0, 0.0, -robot_rb_grivate);
-
-
-        robot_interfaces::msg::Robot joints_target;
-        joints_target.legs[0] = signal_leg_calc(
-            lf_foot_exp_pos, Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero(), lf_foot_exp_force, lf_leg_calc, &lf_forward_torque);
-        joints_target.legs[1] = signal_leg_calc(
-            rf_foot_exp_pos, Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero(), rf_foot_exp_force, rf_leg_calc, &rf_forward_torque);
-        joints_target.legs[2] = signal_leg_calc(
-            lb_foot_exp_pos, Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero(), lb_foot_exp_force, lb_leg_calc, &lb_forward_torque);
-        joints_target.legs[3] = signal_leg_calc(
-            rb_foot_exp_pos, Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero(), rb_foot_exp_force, rb_leg_calc, &rb_forward_torque);
-        legs_target_pub->publish(joints_target);
 
         if (robot_req_state == DOG_REQ_RUN)   // 如果请求转移到行走状态，那么机器人状态先跳转到开始行走状态
             robot_state = DOG_STARTING;
@@ -745,12 +760,6 @@ void RobotCalcNode::legs_update() {
         robot_state = DOG_SETP;         // 初始相
     } else if (robot_state == DOG_SETP) // 机器人正在正常执行步态
     {
-        Vector3D lf_foot_exp_pos, rf_foot_exp_pos, lb_foot_exp_pos, rb_foot_exp_pos;
-        Vector3D lf_foot_exp_force, rf_foot_exp_force, lb_foot_exp_force, rb_foot_exp_force;
-        Vector3D lf_foot_exp_vel, rf_foot_exp_vel, lb_foot_exp_vel, rb_foot_exp_vel;
-        Vector3D lf_foot_exp_acc, rf_foot_exp_acc, lb_foot_exp_acc, rb_foot_exp_acc;
-        std::tie(lf_foot_exp_force, rf_foot_exp_force, lb_foot_exp_force, rb_foot_exp_force) = balance_force_calc(cur_roll, cur_pitch);
-
         auto now = node_->get_clock()->now();
         // TODO:利用LegStep类的轨迹计算是否成功的判据来决定是否开启
         if (step1_flight_updated && (!step1_support_updated)) {    // 处于足端飞行相
@@ -914,8 +923,6 @@ void RobotCalcNode::legs_update() {
                 rb_foot_exp_force += Vector3D(0.0, 0.0, -2.0 * robot_rb_grivate);
             }
 
-
-
             std::tie(lf_foot_exp_pos[0], lf_foot_exp_vel[0], lf_foot_exp_acc[0]) = lf_x_vmc->targetUpdate(
                 lf_foot_exp_pos[0], lf_cart_pos[0], lf_foot_exp_vel[0], lf_cart_vel[0],
                 -lf_cart_force[0]);        // 实际这个lf_cart_force是足端本身要施加的力，不是受到的力
@@ -951,17 +958,6 @@ void RobotCalcNode::legs_update() {
             std::tie(lb_foot_exp_pos[1], lb_foot_exp_vel[1], lb_foot_exp_acc[1]) =
                 lb_y_vmc->targetUpdate(lb_foot_exp_pos[1], lb_cart_pos[1], lb_foot_exp_vel[1], lb_cart_vel[1], -lb_cart_force[1]);
         }
-
-        robot_interfaces::msg::Robot joints_target;
-        joints_target.legs[0] =
-            signal_leg_calc(lf_foot_exp_pos, lf_foot_exp_vel, lf_foot_exp_acc, lf_foot_exp_force, lf_leg_calc, &lf_forward_torque);
-        joints_target.legs[1] =
-            signal_leg_calc(rf_foot_exp_pos, rf_foot_exp_vel, rf_foot_exp_acc, rf_foot_exp_force, rf_leg_calc, &rf_forward_torque);
-        joints_target.legs[2] =
-            signal_leg_calc(lb_foot_exp_pos, lb_foot_exp_vel, lb_foot_exp_acc, lb_foot_exp_force, lb_leg_calc, &lb_forward_torque);
-        joints_target.legs[3] =
-            signal_leg_calc(rb_foot_exp_pos, rb_foot_exp_vel, rb_foot_exp_acc, rb_foot_exp_force, rb_leg_calc, &rb_forward_torque);
-        legs_target_pub->publish(joints_target);
     } else if (robot_state == DOG_ENDING) {
         Vector3D lf_foot_exp_pos, rf_foot_exp_pos, lb_foot_exp_pos, rb_foot_exp_pos;
         Vector3D lf_foot_exp_force, rf_foot_exp_force, lb_foot_exp_force, rb_foot_exp_force;
@@ -978,127 +974,181 @@ void RobotCalcNode::legs_update() {
         rb_foot_exp_pos = rb_leg_stop_pos;
 
         robot_state = DOG_STOP;
-
-        robot_interfaces::msg::Robot joints_target;
-        joints_target.legs[0] = signal_leg_calc(
-            lf_foot_exp_pos, Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero(), lf_foot_exp_force, lf_leg_calc, &lf_forward_torque);
-        joints_target.legs[1] = signal_leg_calc(
-            rf_foot_exp_pos, Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero(), rf_foot_exp_force, rf_leg_calc, &rf_forward_torque);
-        joints_target.legs[2] = signal_leg_calc(
-            lb_foot_exp_pos, Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero(), lb_foot_exp_force, lb_leg_calc, &lb_forward_torque);
-        joints_target.legs[3] = signal_leg_calc(
-            rb_foot_exp_pos, Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero(), rb_foot_exp_force, rb_leg_calc, &rb_forward_torque);
-        legs_target_pub->publish(joints_target);
     } else if (robot_state == DOG_CROSSWALL) {
         Vector3D lf_foot_exp_pos, rf_foot_exp_pos, lb_foot_exp_pos, rb_foot_exp_pos;
         Vector3D lf_foot_exp_force, rf_foot_exp_force, lb_foot_exp_force, rb_foot_exp_force;
         Vector3D lf_foot_exp_vel, rf_foot_exp_vel, lb_foot_exp_vel, rb_foot_exp_vel;
         Vector3D lf_foot_exp_acc, rf_foot_exp_acc, lb_foot_exp_acc, rb_foot_exp_acc;
-        if (cross_wall_stage == 0) {       //设置腿长调节姿态
-            enable_posture_safe=false;
-            body_height=0.23;
-            wall_lf_foot_pos=lf_leg_calc->foot_pos(lf_joint_pos);
-            wall_rf_foot_pos=rf_leg_calc->foot_pos(rf_joint_pos);
-            wall_lb_foot_pos=lb_leg_calc->foot_pos(lb_joint_pos);
-            wall_rb_foot_pos=rb_leg_calc->foot_pos(rb_joint_pos);
+        if (cross_wall_stage == 0) {       // 设置腿长调节姿态
+            enable_posture_safe = false;
+            body_height         = 0.23;
+            wall_lf_foot_pos    = lf_leg_calc->foot_pos(lf_joint_pos);
+            wall_rf_foot_pos    = rf_leg_calc->foot_pos(rf_joint_pos);
+            wall_lb_foot_pos    = lb_leg_calc->foot_pos(lb_joint_pos);
+            wall_rb_foot_pos    = rb_leg_calc->foot_pos(rb_joint_pos);
 
-            lf_leg_step.update_support_trajectory(wall_lf_foot_pos,Vector3D(0.0,0.0,-0.1),2.0);
-            rf_leg_step.update_support_trajectory(wall_rf_foot_pos,Vector3D(0.0,0.0,0.0),2.0);
-            lb_leg_step.update_support_trajectory(wall_lb_foot_pos,Vector3D(0.0,0.0,0.0),2.0);
-            rb_leg_step.update_support_trajectory(wall_rb_foot_pos,Vector3D(0.0,0.0,0.1),2.0);
-            cross_wall_stage_time=node_->get_clock()->now();
+            lf_leg_step.update_support_trajectory(wall_lf_foot_pos, Vector3D(0.0, 0.0, -0.1), 2.0);
+            rf_leg_step.update_support_trajectory(wall_rf_foot_pos, Vector3D(0.0, 0.0, 0.0), 2.0);
+            lb_leg_step.update_support_trajectory(wall_lb_foot_pos, Vector3D(0.0, 0.0, 0.0), 2.0);
+            rb_leg_step.update_support_trajectory(wall_rb_foot_pos, Vector3D(0.0, 0.0, 0.1), 2.0);
+            cross_wall_stage_time = node_->get_clock()->now();
 
-            cross_wall_stage=1;     //无条件跳转到状态1
+            cross_wall_stage = 1;          // 无条件跳转到状态1
         }
         if (cross_wall_stage == 1)         // 执行设置的腿长，调整质心位置，使其落在支撑三角形内
         {
-            bool success=false;
-            double time=(node_->get_clock()->now()-cross_wall_stage_time).seconds();
-            std::tie(lf_foot_exp_pos,lf_foot_exp_vel,lf_foot_exp_acc)=lf_leg_step.get_target(time, success);
-            std::tie(rf_foot_exp_pos,rf_foot_exp_vel,rf_foot_exp_acc)=rf_leg_step.get_target(time, success);
-            std::tie(lb_foot_exp_pos,lb_foot_exp_vel,lb_foot_exp_acc)=lb_leg_step.get_target(time, success);
-            std::tie(rb_foot_exp_pos,rb_foot_exp_vel,rb_foot_exp_acc)=rb_leg_step.get_target(time, success);
-            if(!success)
-            {
-                wall_rf_foot_pos=rf_foot_exp_pos;
-                wall_lb_foot_pos=lb_foot_exp_pos;
-                wall_rb_foot_pos=rb_foot_exp_pos;
-                lf_leg_step.update_support_trajectory(wall_lf_foot_pos,Vector3D(-0.03,0.08,0.15),4.0);
-                cross_wall_stage_time=node_->get_clock()->now();
-                cross_wall_stage=2;     //轨迹执行完后跳转到状态2
+            bool success                                                = false;
+            double time                                                 = (node_->get_clock()->now() - cross_wall_stage_time).seconds();
+            std::tie(lf_foot_exp_pos, lf_foot_exp_vel, lf_foot_exp_acc) = lf_leg_step.get_target(time, success);
+            std::tie(rf_foot_exp_pos, rf_foot_exp_vel, rf_foot_exp_acc) = rf_leg_step.get_target(time, success);
+            std::tie(lb_foot_exp_pos, lb_foot_exp_vel, lb_foot_exp_acc) = lb_leg_step.get_target(time, success);
+            std::tie(rb_foot_exp_pos, rb_foot_exp_vel, rb_foot_exp_acc) = rb_leg_step.get_target(time, success);
+            if (!success) {
+                wall_rf_foot_pos = rf_foot_exp_pos;
+                wall_lb_foot_pos = lb_foot_exp_pos;
+                wall_rb_foot_pos = rb_foot_exp_pos;
+                lf_leg_step.update_support_trajectory(wall_lf_foot_pos, Vector3D(-0.03, 0.08, 0.15), 4.0);
+                cross_wall_stage_time = node_->get_clock()->now();
+                cross_wall_stage      = 2; // 轨迹执行完后跳转到状态2
             }
         }
-        if (cross_wall_stage == 2){
-            bool success=false;
-            double time=(node_->get_clock()->now()-cross_wall_stage_time).seconds();
-            std::tie(lf_foot_exp_pos,lf_foot_exp_vel,lf_foot_exp_acc)=lf_leg_step.get_target(time, success);
-            rf_foot_exp_pos=wall_rf_foot_pos;
-            lb_foot_exp_pos=wall_lb_foot_pos;
-            rb_foot_exp_pos=wall_rb_foot_pos;
-            if(!success)
-            {
-                wall_lf_foot_pos=lf_foot_exp_pos;
-                lf_leg_step.update_support_trajectory(Vector3D(-0.03,0.1,0.15),Vector3D(0.35,0.1,0.24),4.0);
-                cross_wall_stage_time=node_->get_clock()->now();
-                cross_wall_stage=3;
+        if (cross_wall_stage == 2) {
+            bool success                                                = false;
+            double time                                                 = (node_->get_clock()->now() - cross_wall_stage_time).seconds();
+            std::tie(lf_foot_exp_pos, lf_foot_exp_vel, lf_foot_exp_acc) = lf_leg_step.get_target(time, success);
+            rf_foot_exp_pos                                             = wall_rf_foot_pos;
+            lb_foot_exp_pos                                             = wall_lb_foot_pos;
+            rb_foot_exp_pos                                             = wall_rb_foot_pos;
+            if (!success) {
+                wall_lf_foot_pos = lf_foot_exp_pos;
+                lf_leg_step.update_support_trajectory(Vector3D(-0.03, 0.1, 0.15), Vector3D(0.35, 0.1, 0.24), 4.0);
+                cross_wall_stage_time = node_->get_clock()->now();
+                cross_wall_stage      = 3;
             }
         }
         if (cross_wall_stage == 3) {
-            bool success=false;
-            double time=(node_->get_clock()->now()-cross_wall_stage_time).seconds();
-            std::tie(lf_foot_exp_pos,lf_foot_exp_vel,lf_foot_exp_acc)=lf_leg_step.get_target(time, success);
-            rf_foot_exp_pos=wall_rf_foot_pos;
-            lb_foot_exp_pos=wall_lb_foot_pos;
-            rb_foot_exp_pos=wall_rb_foot_pos;
-            if(!success)
-            {
-                wall_lf_foot_pos=lf_foot_exp_pos;
-                lf_leg_step.update_support_trajectory(Vector3D(0.35,0.1,0.2),Vector3D(0.35,0.0,0.23),4.0);
-                cross_wall_stage_time=node_->get_clock()->now();
-                cross_wall_stage=4;
+            bool success                                                = false;
+            double time                                                 = (node_->get_clock()->now() - cross_wall_stage_time).seconds();
+            std::tie(lf_foot_exp_pos, lf_foot_exp_vel, lf_foot_exp_acc) = lf_leg_step.get_target(time, success);
+            rf_foot_exp_pos                                             = wall_rf_foot_pos;
+            lb_foot_exp_pos                                             = wall_lb_foot_pos;
+            rb_foot_exp_pos                                             = wall_rb_foot_pos;
+            if (!success) {
+                wall_lf_foot_pos = lf_foot_exp_pos;
+                lf_leg_step.update_support_trajectory(Vector3D(0.35, 0.1, 0.2), Vector3D(0.35, 0.0, 0.23), 4.0);
+                cross_wall_stage_time = node_->get_clock()->now();
+                cross_wall_stage      = 4;
             }
         }
-        if(cross_wall_stage==4){
-            //TODO:足端移动到正前方
-            lf_foot_exp_pos=wall_lf_foot_pos;
-            rf_foot_exp_pos=wall_rf_foot_pos;
-            lb_foot_exp_pos=wall_lb_foot_pos;
-            rb_foot_exp_pos=wall_rb_foot_pos;
+        if (cross_wall_stage == 4) {
+            // TODO:足端移动到正前方
+            lf_foot_exp_pos = wall_lf_foot_pos;
+            rf_foot_exp_pos = wall_rf_foot_pos;
+            lb_foot_exp_pos = wall_lb_foot_pos;
+            rb_foot_exp_pos = wall_rb_foot_pos;
         }
-        if(cross_wall_stage==5){
-            //TODO:规划一条直线并执行让右前褪搭到高墙上
+        if (cross_wall_stage == 5) {
+            // TODO:规划一条直线并执行让右前褪搭到高墙上
         }
-        if(cross_wall_stage==6){
-            //TODO:前腿足端向后移动，拉动狗子向前移动
+        if (cross_wall_stage == 6) {
+            // TODO:前腿足端向后移动，拉动狗子向前移动
         }
-        if(cross_wall_stage==7){
-            //左前褪向前摆动到支撑相中性点
+        if (cross_wall_stage == 7) {
+            // 左前褪向前摆动到支撑相中性点
         }
-        if(cross_wall_stage==8){
-            //右前褪向前摆动到支撑相中性点
+        if (cross_wall_stage == 8) {
+            // 右前褪向前摆动到支撑相中性点
         }
-        if(cross_wall_stage==9){
-            //左后腿和右后腿足端从下面上升到水平位置
+        if (cross_wall_stage == 9) {
+            // 左后腿和右后腿足端从下面上升到水平位置
         }
-        if(cross_wall_stage==10){
-            //左后腿和右后腿足端向前摆动知道超过高墙位置（此时狗子腹部靠后位置支撑在墙上）
+        if (cross_wall_stage == 10) {
+            // 左后腿和右后腿足端向前摆动知道超过高墙位置（此时狗子腹部靠后位置支撑在墙上）
         }
-        if(cross_wall_stage==11){
-            //依靠大腿推动狗身继续前进知道越过高墙
+        if (cross_wall_stage == 11) {
+            // 依靠大腿推动狗身继续前进知道越过高墙
         }
-
-        robot_interfaces::msg::Robot joints_target;
-        joints_target.legs[0] =
-            signal_leg_calc(lf_foot_exp_pos, lf_foot_exp_vel, lf_foot_exp_acc, lf_foot_exp_force, lf_leg_calc, &lf_forward_torque);
-        joints_target.legs[1] =
-            signal_leg_calc(rf_foot_exp_pos, rf_foot_exp_vel, rf_foot_exp_acc, rf_foot_exp_force, rf_leg_calc, &rf_forward_torque);
-        joints_target.legs[2] =
-            signal_leg_calc(lb_foot_exp_pos, lb_foot_exp_vel, lb_foot_exp_acc, lb_foot_exp_force, lb_leg_calc, &lb_forward_torque);
-        joints_target.legs[3] =
-            signal_leg_calc(rb_foot_exp_pos, rb_foot_exp_vel, rb_foot_exp_acc, rb_foot_exp_force, rb_leg_calc, &rb_forward_torque);
-        legs_target_pub->publish(joints_target);
     }
 
+    auto lf_leg_joints_target = signal_leg_calc(lf_foot_exp_pos, lf_foot_exp_vel, lf_foot_exp_acc, lf_foot_exp_force, lf_leg_calc);
+    auto rf_leg_joints_target = signal_leg_calc(rf_foot_exp_pos, rf_foot_exp_vel, rf_foot_exp_acc, rf_foot_exp_force, rf_leg_calc);
+    auto lb_leg_joints_target = signal_leg_calc(lb_foot_exp_pos, lb_foot_exp_vel, lb_foot_exp_acc, lb_foot_exp_force, lb_leg_calc);
+    auto rb_leg_joints_target = signal_leg_calc(rb_foot_exp_pos, rb_foot_exp_vel, rb_foot_exp_acc, rb_foot_exp_force, rb_leg_calc);
+    // RCLCPP_INFO(node_->get_logger(),"x:%lf,y:%lf,z:%lf",lf_foot_exp_pos[0],lf_foot_exp_pos[1],lf_foot_exp_pos[2]);
+
+    lf_forward_torque = std::get<2>(lf_leg_joints_target); // 更新本周期计算的前馈力矩准备用作下一个控制周期的计算
+    rf_forward_torque = std::get<2>(rf_leg_joints_target);
+    lb_forward_torque = std::get<2>(lb_leg_joints_target);
+    rb_forward_torque = std::get<2>(rb_leg_joints_target);
+
+    // 发布话题控制ROS2_control控制器、物理机器人
+    robot_interfaces::msg::Robot joints_target;
+    for (int i = 0; i < 3; i++) {
+        joints_target.legs[0].joints[i].rad    = (float)std::get<0>(lf_leg_joints_target)[i];
+        joints_target.legs[0].joints[i].omega  = (float)std::get<1>(lf_leg_joints_target)[i];
+        joints_target.legs[0].joints[i].torque = (float)std::get<2>(lf_leg_joints_target)[i];
+
+        joints_target.legs[1].joints[i].rad    = (float)std::get<0>(rf_leg_joints_target)[i];
+        joints_target.legs[1].joints[i].omega  = (float)std::get<1>(rf_leg_joints_target)[i];
+        joints_target.legs[1].joints[i].torque = (float)std::get<2>(rf_leg_joints_target)[i];
+
+        joints_target.legs[2].joints[i].rad    = (float)std::get<0>(lb_leg_joints_target)[i];
+        joints_target.legs[2].joints[i].omega  = (float)std::get<1>(lb_leg_joints_target)[i];
+        joints_target.legs[2].joints[i].torque = (float)std::get<2>(lb_leg_joints_target)[i];
+
+        joints_target.legs[3].joints[i].rad    = (float)std::get<0>(rb_leg_joints_target)[i];
+        joints_target.legs[3].joints[i].omega  = (float)std::get<1>(rb_leg_joints_target)[i];
+        joints_target.legs[3].joints[i].torque = (float)std::get<2>(rb_leg_joints_target)[i];
+    }
+    legs_target_pub->publish(joints_target);
+
+    rviz2_update_cnt++;
+    if (rviz2_update_cnt == 5) { // 发布话题在RVIZ2中查看
+        rviz2_update_cnt = 0;
+
+        joint_display_msg.position[0] = lf_joint_pos[0];
+        joint_display_msg.position[1] = lf_joint_pos[1];
+        joint_display_msg.position[2] = lf_joint_pos[2];
+
+        joint_display_msg.position[3] = rf_joint_pos[0];
+        joint_display_msg.position[4] = rf_joint_pos[1];
+        joint_display_msg.position[5] = rf_joint_pos[2];
+
+        joint_display_msg.position[6] = lb_joint_pos[0];
+        joint_display_msg.position[7] = lb_joint_pos[1];
+        joint_display_msg.position[8] = lb_joint_pos[2];
+
+        joint_display_msg.position[9]  = rb_joint_pos[0];
+        joint_display_msg.position[10] = rb_joint_pos[1];
+        joint_display_msg.position[11] = rb_joint_pos[2];
+
+        // for(int i=0;i<12;i++)   //在RVIZ2中显示期望
+        //     joint_display_msg.position[i]=joints_target.legs[i/3].joints[i%3].rad;
+
+        joint_display_msg.header.stamp = node_->get_clock()->now();
+        rviz_joint_publisher->publish(joint_display_msg);
+
+#if 0
+        // 离线模拟、认为关节立即到达发布的目标位置
+        robot_interfaces::msg::Robot msg = joints_target;
+        for (int i = 0; i < 3; i++) {
+            lf_joint_pos[i] = (double)msg.legs[0].joints[i].rad;
+            rf_joint_pos[i] = (double)msg.legs[1].joints[i].rad;
+            lb_joint_pos[i] = (double)msg.legs[2].joints[i].rad;
+            rb_joint_pos[i] = (double)msg.legs[3].joints[i].rad;
+
+            lf_joint_vel[i] = (double)msg.legs[0].joints[i].omega;
+            rf_joint_vel[i] = (double)msg.legs[1].joints[i].omega;
+            lb_joint_vel[i] = (double)msg.legs[2].joints[i].omega;
+            rb_joint_vel[i] = (double)msg.legs[3].joints[i].omega;
+
+            lf_joint_torque[i] = (double)msg.legs[0].joints[i].torque;
+            rf_joint_torque[i] = (double)msg.legs[1].joints[i].torque;
+            lb_joint_torque[i] = (double)msg.legs[2].joints[i].torque;
+            rb_joint_torque[i] = (double)msg.legs[3].joints[i].torque;
+        }
+#endif
+    }
 
     // TF变换更新
     geometry_msgs::msg::TransformStamped t;
@@ -1116,42 +1166,6 @@ void RobotCalcNode::legs_update() {
 
     robot_tf_broadcaster->sendTransform(t);
 }
-
-// 根据姿态，计算恢复平衡需要施加的力
-std::tuple<Vector3D, Vector3D, Vector3D, Vector3D>
-    RobotCalcNode::balance_force_calc(double cur_roll, double cur_pitch, double exp_roll, double exp_pitch) {
-    cur_roll  = cur_roll - exp_roll;
-    cur_pitch = cur_pitch - exp_pitch;
-
-    roll_offset_virtual_torque  = roll_vmc->update(cur_roll, robot_velocity.angular.x, exp_roll);
-    pitch_offset_virtual_torque = pitch_vmc->update(cur_pitch, robot_velocity.angular.y, exp_pitch);
-    // RCLCPP_INFO(node_->get_logger(),"roll:%lf,pitch:%lf",cur_roll,cur_pitch);
-
-    // TODO:计算四个足端的期望的平衡虚拟力(pitch)
-    Vector3D lf_force, rf_force, lb_force, rb_force;
-    lf_force[2] += pitch_offset_virtual_torque * lf_leg_calc->pos_offset[0];
-    rf_force[2] += pitch_offset_virtual_torque * rf_leg_calc->pos_offset[0];
-    lb_force[2] += pitch_offset_virtual_torque * lb_leg_calc->pos_offset[0];
-    rb_force[2] += pitch_offset_virtual_torque * rb_leg_calc->pos_offset[0];
-
-    lf_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
-    rf_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
-    lb_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
-    rb_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
-
-    // TODO:计算四个足端的期望的平衡虚拟力(roll)
-    lf_force[2] += roll_offset_virtual_torque * lf_leg_calc->pos_offset[1];
-    rf_force[2] += roll_offset_virtual_torque * rf_leg_calc->pos_offset[1];
-    lb_force[2] += roll_offset_virtual_torque * lb_leg_calc->pos_offset[1];
-    rb_force[2] += roll_offset_virtual_torque * rb_leg_calc->pos_offset[1];
-
-    lf_force[1] += pitch_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
-    rf_force[1] += pitch_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
-    lb_force[1] += pitch_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
-    rb_force[1] += pitch_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
-    return {lf_force, rf_force, lb_force, rb_force};
-}
-
 
 Vector3D RobotCalcNode::get_grivate_center_pose(
     const Vector3D& lf_joint_pos, const Vector3D& rf_joint_pos, const Vector3D& lb_joint_pos, const Vector3D& rb_joint_pos) {
