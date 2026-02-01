@@ -17,8 +17,6 @@ class RemoteNode :public rclcpp::Node
     RemoteNode():Node("remote_node")
     {  
         remote_cdc_trans = std::make_unique<CDCTrans>();
-
-        RCLCPP_INFO(this->get_logger(), "1111111111111111111111111111111111111111111111");
           exit_thread=false;
           remote_pub= this->create_publisher<robot_interfaces::msg::MoveCmd>("robot_move_cmd", 10);
            remote_cdc_trans->regeiser_recv_cb([this](const uint8_t* data, int size) { // 注册接收回调
@@ -43,7 +41,7 @@ class RemoteNode :public rclcpp::Node
     ~RemoteNode() {
     // 请求线程退出并等待其结束，保证安全关闭
     exit_thread = true;
-    if (usb_event_handle_thread && usb_event_handle_thread->joinable()) {
+    if (usb_event_handle_thread && usb1_event_handle_thread->joinable()) {
         usb_event_handle_thread->join();
     }
     if (remote_cdc_trans) {
@@ -57,19 +55,23 @@ class RemoteNode :public rclcpp::Node
         remote_msg.vy =  legs_remote->remote.vy;
         remote_msg.vz = legs_remote->remote.omega;
         remote_msg.wheel_vel = legs_remote->remote.wheel_v;
-        const float speed_threshold = 0.2; 
+        const float step_speed_limit= 0.2; 
+        const float wheel_speed_limit =0.1;
     if (remote_msg.vx == 0 && remote_msg.vy == 0 && remote_msg.wheel_vel == 0) {
         remote_msg.step_mode = 1; 
     }
-    if (std::fabs(remote_msg.vx)< speed_threshold && std::fabs(remote_msg.vy) < speed_threshold) {
+    if (std::fabs(remote_msg.vx)< step_speed_limit && std::fabs(remote_msg.vy) < step_speed_limit) {
             remote_msg.step_mode = 1; 
     }
-    if (std::fabs(remote_msg.vx) > speed_threshold) {
+    if (std::fabs(remote_msg.vx) > wheel_speed_limit) {
         remote_msg.step_mode = 2; 
     }
     
-    if (std::fabs(remote_msg.vx) > 1.0f && std::fabs(remote_msg.vy) > 1.0) {
+    if (std::fabs(remote_msg.vx) > 1.0f || std::fabs(remote_msg.vy) > 1.0) {
         remote_msg.step_mode = 1; 
+    }
+    if(remote_msg.wheel_vel > wheel_speed_limit){
+        remote_msg.step_mode = 2;
     }
         RCLCPP_INFO(this->get_logger(), "legs_remote->remote.vx %f, legs_remote->remote.vy %f, legs_remote->remote.omega %f, legs_remote->remote.wheel_v %f", 
         legs_remote->remote.vx, legs_remote->remote.vy, legs_remote->remote.omega, legs_remote->remote.wheel_v);
