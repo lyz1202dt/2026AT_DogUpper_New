@@ -8,8 +8,7 @@
 #include <chrono>
 #include <tf2/LinearMath/Quaternion.h> 
 #include "robot_interfaces/msg/move_cmd.hpp"
-#include <dog_calc.hpp>
-
+#include <cmath> 
 using namespace std::chrono_literals;
 
 class RemoteNode :public rclcpp::Node
@@ -58,26 +57,20 @@ class RemoteNode :public rclcpp::Node
         remote_msg.vy =  legs_remote->remote.vy;
         remote_msg.vz = legs_remote->remote.omega;
         remote_msg.wheel_vel = legs_remote->remote.wheel_v;
-       const float speed_threshold = 0.1; // 设定一个速度阈值
-    // 判断机器人状态
+        const float speed_threshold = 0.1; 
     if (remote_msg.vx == 0 && remote_msg.vy == 0 && remote_msg.wheel_vel == 0) {
-        remote_msg.step_mode = DOG_IDEL; 
+        remote_msg.step_mode = 1; 
     }
-    if (remote_msg.vx != 0 || remote_msg.vy != 0) {
-        if (remote_msg.vx > speed_threshold || remote_msg.vy > speed_threshold) {
-            remote_msg.step_mode = DOG_STARTING; 
-        }
+    if (std::fabs(remote_msg.vx)< speed_threshold && std::fabs(remote_msg.vy) < speed_threshold) {
+            remote_msg.step_mode = 1; 
     }
-    if (remote_msg.wheel_vel > speed_threshold) {
-        remote_msg.step_mode = DOG_SETUP; 
+    if (std::fabs(remote_msg.wheel_vel) > speed_threshold) {
+        remote_msg.step_mode = 2; 
     }
-    if (remote_msg.vx == 0 && remote_msg.vy == 0 && remote_msg.wheel_vel == 0) {
-        remote_msg.step_mode = DOG_REQ_IDEL; 
+    
+    if (std::fabs(remote_msg.vx) > 1.0f && std::fabs(remote_msg.vy) > 0) {
+        remote_msg.step_mode = 1; 
     }
-    if (remote_msg.vx != 0 || remote_msg.vy != 0) {
-        remote_msg.step_mode = DOG_REQ_RUN; 
-    }
-
         RCLCPP_INFO(this->get_logger(), "legs_remote->remote.vx %f, legs_remote->remote.vy %f, legs_remote->remote.omega %f, legs_remote->remote.wheel_v %f", 
         legs_remote->remote.vx, legs_remote->remote.vy, legs_remote->remote.omega, legs_remote->remote.wheel_v);
         remote_pub->publish(remote_msg);

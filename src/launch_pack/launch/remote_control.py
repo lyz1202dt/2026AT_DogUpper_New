@@ -41,7 +41,7 @@ def generate_launch_description():
     
     remote =Node(
         package="leg_driver",
-        executable="remote_pub"
+        executable="remote"
 
     )
     sim_launch = IncludeLaunchDescription(
