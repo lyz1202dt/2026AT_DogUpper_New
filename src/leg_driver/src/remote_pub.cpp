@@ -57,22 +57,20 @@ class RemoteNode :public rclcpp::Node
         remote_msg.vy =  legs_remote->remote.vy;
         remote_msg.vz = legs_remote->remote.omega;
         remote_msg.wheel_vel = legs_remote->remote.wheel_v;
-        remote_msg.step_mode = 2;
-        remote_msg.vx=1.0;
-    //     const float speed_threshold = 0.1; 
-    // if (remote_msg.vx == 0 && remote_msg.vy == 0 && remote_msg.wheel_vel == 0) {
-    //     remote_msg.step_mode = 1; 
-    // }
-    // if (std::fabs(remote_msg.vx)< speed_threshold && std::fabs(remote_msg.vy) < speed_threshold) {
-    //         remote_msg.step_mode = 1; 
-    // }
-    // if (std::fabs(remote_msg.wheel_vel) > speed_threshold) {
-    //     remote_msg.step_mode = 2; 
-    // }
+        const float speed_threshold = 0.2; 
+    if (remote_msg.vx == 0 && remote_msg.vy == 0 && remote_msg.wheel_vel == 0) {
+        remote_msg.step_mode = 1; 
+    }
+    if (std::fabs(remote_msg.vx)< speed_threshold && std::fabs(remote_msg.vy) < speed_threshold) {
+            remote_msg.step_mode = 1; 
+    }
+    if (std::fabs(remote_msg.vx) > speed_threshold) {
+        remote_msg.step_mode = 2; 
+    }
     
-    // if (std::fabs(remote_msg.vx) > 1.0f && std::fabs(remote_msg.vy) > 0) {
-    //     remote_msg.step_mode = 1; 
-    // }
+    if (std::fabs(remote_msg.vx) > 1.0f && std::fabs(remote_msg.vy) > 1.0) {
+        remote_msg.step_mode = 1; 
+    }
         RCLCPP_INFO(this->get_logger(), "legs_remote->remote.vx %f, legs_remote->remote.vy %f, legs_remote->remote.omega %f, legs_remote->remote.wheel_v %f", 
         legs_remote->remote.vx, legs_remote->remote.vy, legs_remote->remote.omega, legs_remote->remote.wheel_v);
         remote_pub->publish(remote_msg);
