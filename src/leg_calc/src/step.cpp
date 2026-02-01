@@ -75,9 +75,9 @@ void LegStep::update_support_trajectory(const Vector3D& cur_pos, const Vector3D 
 }
 
 void LegStep::update_flight_trajectory(
-    const Vector3D& cur_pos, const Vector3D& cur_vel, const Vector2D& exp_vel, const double time, const double step_height,const double target_height) {
-    double target_x = exp_vel[0] * time * 0.5;
-    double target_y = exp_vel[1] * time * 0.5;
+    const Vector3D& cur_pos, const Vector3D& cur_vel, const Vector2D& exp_vel, const double time, const double step_height,const double target_height,const double x_offset,const double y_offset) {
+    double target_x = exp_vel[0] * time * 0.5+x_offset;
+    double target_y = exp_vel[1] * time * 0.5+y_offset;
 
     flight_trajectory.time = time;
 
@@ -116,6 +116,44 @@ void LegStep::update_flight_trajectory(
 
     flight_trajectory_is_available  = true;
     support_trajectory_is_available = false;
+    needs_mid_replanning = false;
+    mid_replanning_done = false;
+}
+
+// 带回调函数的重载版本：在摆动相最高点时重新规划落足点
+void LegStep::update_flight_trajectory(
+    const Vector3D& cur_pos, const Vector3D& cur_vel, const Vector2D& exp_vel, const double time, const double step_height,
+    std::function<Vector3D(const Vector3D&)> replanning_callback,
+    const double target_height, const double x_offset, const double y_offset) {
+    
+    // 计算初始规划的落足点
+    double target_x = exp_vel[0] * time * 0.5 + x_offset;
+    double target_y = exp_vel[1] * time * 0.5 + y_offset;
+    initial_target_pos = Vector3D(target_x, target_y, target_height);
+
+    flight_trajectory.time = time;
+
+    // x方向轨迹 - 先规划到初始目标点
+    set_quintic(
+        flight_trajectory.lx, cur_pos[0], cur_vel[0], 0.0,
+        target_x, -exp_vel[0], 0.0, time);
+    
+    // y方向轨迹 - 先规划到初始目标点
+    set_quintic(flight_trajectory.ly, cur_pos[1], cur_vel[1], 0.0, target_y, -exp_vel[1], 0.0, time);
+    
+    // z方向第一段：从当前z抬到最高点
+    set_quintic(flight_trajectory.l1_z, cur_pos[2], cur_vel[2], 0.0, step_height, 0.0, 0.0, time * 0.5f);
+
+    // z方向第二段：先用初始目标点规划，后续会在get_target中重新规划
+    set_quintic(flight_trajectory.l2_z, step_height, 0.0, 0.0, target_height, 0.0, 0.0, time * 0.5f);
+
+    // 保存回调函数和标记
+    this->replanning_callback = replanning_callback;
+    needs_mid_replanning = true;
+    mid_replanning_done = false;
+
+    flight_trajectory_is_available  = true;
+    support_trajectory_is_available = false;
 }
 
 std::tuple<Vector3D, Vector3D, Vector3D> LegStep::get_target(double time, bool& success) {
@@ -131,24 +169,79 @@ std::tuple<Vector3D, Vector3D, Vector3D> LegStep::get_target(double time, bool& 
         else
             success=true;
         
-        pos[0] = get_quintic_value(flight_trajectory.lx, time);
-        vel[0] = get_quintic_dt(flight_trajectory.lx, time);
-        acc[0] = get_quintic_dtdt(flight_trajectory.lx, time);
+        // 检查是否需要在最高点进行中途重新规划
+        double half_time = flight_trajectory.time * 0.5;
+        if (needs_mid_replanning && !mid_replanning_done && time >= half_time) {
+            // 在摆动相最高点调用回调函数重新规划落足点
+            Vector3D new_target_pos = replanning_callback(initial_target_pos);
+            
+            // 获取最高点处的x、y位置和速度（作为重新规划l2_z的起点，同时也需要重新规划xy）
+            double mid_pos_x = get_quintic_value(flight_trajectory.lx, half_time);
+            double mid_pos_y = get_quintic_value(flight_trajectory.ly, half_time);
+            double mid_vel_x = get_quintic_dt(flight_trajectory.lx, half_time);
+            double mid_vel_y = get_quintic_dt(flight_trajectory.ly, half_time);
+            
+            // 获取最高点处的z位置（应该等于step_height）
+            double mid_pos_z = get_quintic_value(flight_trajectory.l1_z, half_time);
+            
+            // 重新规划x方向后半段轨迹（从最高点到新的落足点）
+            set_quintic(
+                flight_trajectory.lx, 
+                mid_pos_x, mid_vel_x, 0.0,  // 最高点处的状态
+                new_target_pos[0], 0.0, 0.0,  // 新的目标点，速度和加速度为0
+                half_time);
+            
+            // 重新规划y方向后半段轨迹
+            set_quintic(
+                flight_trajectory.ly,
+                mid_pos_y, mid_vel_y, 0.0,
+                new_target_pos[1], 0.0, 0.0,
+                half_time);
+            
+            // 重新规划z方向第二段轨迹（从最高点落到新的目标高度）
+            set_quintic(
+                flight_trajectory.l2_z,
+                mid_pos_z, 0.0, 0.0,  // 最高点处速度为0
+                new_target_pos[2], 0.0, 0.0,  // 新的目标高度
+                half_time);
+            
+            mid_replanning_done = true;  // 标记已完成重新规划
+        }
+        
+        // 计算当前位置、速度和加速度
+        // X 方向
+        if (time < half_time) {
+            // 前半段：使用初始规划
+            pos[0] = get_quintic_value(flight_trajectory.lx, time);
+            vel[0] = get_quintic_dt(flight_trajectory.lx, time);
+            acc[0] = get_quintic_dtdt(flight_trajectory.lx, time);
+        } else {
+            // 后半段：使用重新规划的轨迹（如果有的话）
+            pos[0] = get_quintic_value(flight_trajectory.lx, time - half_time);
+            vel[0] = get_quintic_dt(flight_trajectory.lx, time - half_time);
+            acc[0] = get_quintic_dtdt(flight_trajectory.lx, time - half_time);
+        }
 
-        // Y 方向五次多项式
-        pos[1] = get_quintic_value(flight_trajectory.ly, time);
-        vel[1] = get_quintic_dt(flight_trajectory.ly, time);
-        acc[1] = get_quintic_dtdt(flight_trajectory.ly, time);
+        // Y 方向
+        if (time < half_time) {
+            pos[1] = get_quintic_value(flight_trajectory.ly, time);
+            vel[1] = get_quintic_dt(flight_trajectory.ly, time);
+            acc[1] = get_quintic_dtdt(flight_trajectory.ly, time);
+        } else {
+            pos[1] = get_quintic_value(flight_trajectory.ly, time - half_time);
+            vel[1] = get_quintic_dt(flight_trajectory.ly, time - half_time);
+            acc[1] = get_quintic_dtdt(flight_trajectory.ly, time - half_time);
+        }
 
         // Z 方向分两段（前半抬腿，后半落腿）
-        if (time < flight_trajectory.time * 0.5f) {
+        if (time < half_time) {
             pos[2] = get_quintic_value(flight_trajectory.l1_z, time);
             vel[2] = get_quintic_dt(flight_trajectory.l1_z, time);
             acc[2] = get_quintic_dtdt(flight_trajectory.l1_z, time);
         } else {
-            pos[2] = get_quintic_value(flight_trajectory.l2_z, time - flight_trajectory.time * 0.5f);
-            vel[2] = get_quintic_dt(flight_trajectory.l2_z, time - flight_trajectory.time * 0.5f);
-            acc[2] = get_quintic_dtdt(flight_trajectory.l2_z, time - flight_trajectory.time * 0.5f);
+            pos[2] = get_quintic_value(flight_trajectory.l2_z, time - half_time);
+            vel[2] = get_quintic_dt(flight_trajectory.l2_z, time - half_time);
+            acc[2] = get_quintic_dtdt(flight_trajectory.l2_z, time - half_time);
         }
         
     } else if (support_trajectory_is_available) {

@@ -49,13 +49,18 @@ public:
         DOG_SETP,
         DOG_ENDING,
 
-        DOG_SETUP
+        DOG_CROSSWALL,
+
+        DOG_SETUP,
+        DOG_JUMP
     };
 
     enum DogReqState{  //请求的机器人状态
         DOG_REQ_IDEL,
         DOG_REQ_STOP,
-        DOG_REQ_RUN
+        DOG_REQ_RUN,
+        DOG_REQ_CROSS_WALL,
+        DOG_REQ_JUMP
     };
 
     static constexpr double WHEEL_RADIUS = 0.065;
@@ -145,6 +150,8 @@ private:
     double pitch_offset_virtual_torque{0.0};
     double roll_balance_force_compen{0.0};
     double pitch_balance_force_compen{0.0};
+    double roll_balance_step_compen{0.0};
+    double pitch_balance_step_compen{0.0};
     int rviz2_update_cnt{0};
 
     Eigen::Vector3d lf_leg_stop_pos,rf_leg_stop_pos,lb_leg_stop_pos,rb_leg_stop_pos;
@@ -160,6 +167,7 @@ private:
     double robot_lb_grivate{0.0};
     double robot_rb_grivate{0.0};
     double exp_roll,exp_pitch;
+    double cur_roll{0.0}, cur_pitch{0.0};  // 当前姿态角度
     
 
     tf2::Quaternion robot_rotation;                    //机器人姿态
@@ -172,4 +180,11 @@ private:
     bool trajectory_calced{false};
     int setup_stage{0};
     rclcpp::Time setup_time;
+
+
+    //翻过高墙
+    int cross_wall_stage{0};
+    rclcpp::Time cross_wall_stage_time;
+    Vector3D wall_lf_foot_pos,wall_rf_foot_pos,wall_lb_foot_pos,wall_rb_foot_pos;
+    bool enable_posture_safe{true};
 };
