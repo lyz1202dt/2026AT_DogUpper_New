@@ -77,7 +77,7 @@ private:
 
     static void quaternionLowPassFilter(double& w,  double& x,  double& y,  double& z,double  w1, double  x1, double  y1, double  z1,double alpha);
     Vector3D get_grivate_center_pose(const Vector3D &lf_joint_pos,const Vector3D &rf_joint_pos,const Vector3D &lb_joint_pos,const Vector3D &rb_joint_pos);
-    
+    void allocateVirtualTorqueQR(double roll_torque,double pitch_torque,const Eigen::Vector4d& x_offset,const Eigen::Vector4d& y_offset,const Eigen::Vector4d& F_min,const Eigen::Vector4d& F_max,Eigen::Vector4d& F_out, double weights_a);
     
 
     rclcpp::Node::SharedPtr node_;
@@ -150,6 +150,8 @@ private:
     double pitch_balance_force_compen{0.0};
     double roll_balance_step_compen{0.0};
     double pitch_balance_step_compen{0.0};
+    double robot_lf_max_force, robot_rf_max_force, robot_lb_max_force, robot_rb_max_force;
+    double weights_a{0.8};
     int rviz2_update_cnt{0};
 
     Eigen::Vector3d lf_leg_stop_pos,rf_leg_stop_pos,lb_leg_stop_pos,rb_leg_stop_pos;
