@@ -5,6 +5,7 @@
 #include <Eigen/src/Geometry/Quaternion.h>
 #include <algorithm>
 #include <chrono>
+#include <cstdlib>
 #include <geometry_msgs/msg/detail/pose__struct.hpp>
 #include <geometry_msgs/msg/detail/vector3__struct.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
@@ -55,8 +56,8 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     node_->declare_parameter("roll_vmc_kd", 0.0);
     node_->declare_parameter("pitch_vmc_kp", 500.0);
     node_->declare_parameter("pitch_vmc_kd", 0.0);
-    node_->declare_parameter("roll_balance_force_compen", -1.0);
-    node_->declare_parameter("pitch_balance_force_compen", -1.0);
+    node_->declare_parameter("roll_balance_force_compen", 0.0);
+    node_->declare_parameter("pitch_balance_force_compen", 0.0);
     node_->declare_parameter("roll_balance_step_compen", 0.4);
     node_->declare_parameter("pitch_balance_step_compen", 0.4);
 
@@ -551,6 +552,11 @@ std::tuple<Vector3D, Vector3D, Vector3D> RobotCalcNode::signal_leg_calc(
     joint_torque = leg_calc->joint_torque_foot_force(joint_pos, exp_cart_force);
     joint_torque += leg_calc->joint_torque_dynamic(joint_pos, joint_omega, exp_cart_acc);
 
+    if(result!=0)
+    {
+        RCLCPP_INFO(node_->get_logger(),"逆运动学求解失败!");
+        exit(-1);
+    }
     // robot_interfaces::msg::Leg leg;
     // for (int i = 0; i < 3; i++) {
     //     leg.joints[i].rad    = static_cast<float>(joint_pos[i]);
@@ -903,41 +909,13 @@ void RobotCalcNode::legs_update() {
         roll_offset_virtual_torque  = roll_vmc->update(cur_roll, robot_velocity.angular.x);
         pitch_offset_virtual_torque = pitch_vmc->update(cur_pitch, robot_velocity.angular.y);
 
-        // lf_foot_exp_force[2] += pitch_offset_virtual_torque * lf_leg_calc->pos_offset[0];
-        // rf_foot_exp_force[2] += pitch_offset_virtual_torque * rf_leg_calc->pos_offset[0];
-        // lb_foot_exp_force[2] += pitch_offset_virtual_torque * lb_leg_calc->pos_offset[0];
-        // rb_foot_exp_force[2] += pitch_offset_virtual_torque * rb_leg_calc->pos_offset[0];
-
-        // // lf_foot_exp_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
-        // // rf_foot_exp_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
-        // // lb_foot_exp_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
-        // // rb_foot_exp_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
-
-        // // TODO:计算四个足端的期望的平衡虚拟力(roll)
-        // lf_foot_exp_force[2] += roll_offset_virtual_torque * lf_leg_calc->pos_offset[1];
-        // rf_foot_exp_force[2] += roll_offset_virtual_torque * rf_leg_calc->pos_offset[1];
-        // lb_foot_exp_force[2] += roll_offset_virtual_torque * lb_leg_calc->pos_offset[1];
-        // rb_foot_exp_force[2] += roll_offset_virtual_torque * rb_leg_calc->pos_offset[1];
-
-        // lf_foot_exp_force[1] += pitch_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
-        // rf_foot_exp_force[1] += pitch_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
-        // lb_foot_exp_force[1] += pitch_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
-        // rb_foot_exp_force[1] += pitch_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
-
         if (step1_support_updated) { // 主相位需要VMC计算
 
         lf_foot_exp_force[2] += pitch_offset_virtual_torque * lf_leg_calc->pos_offset[0];
         rb_foot_exp_force[2] += pitch_offset_virtual_torque * rb_leg_calc->pos_offset[0];
 
-        lf_foot_exp_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
-        rb_foot_exp_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
-
-        // TODO:计算四个足端的期望的平衡虚拟力(roll)
         lf_foot_exp_force[2] += roll_offset_virtual_torque * lf_leg_calc->pos_offset[1];
         rb_foot_exp_force[2] += roll_offset_virtual_torque * rb_leg_calc->pos_offset[1];
-
-        lf_foot_exp_force[1] += roll_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
-        rb_foot_exp_force[1] += roll_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
 
 
             std::tie(lf_foot_exp_pos[2], lf_foot_exp_vel[2], lf_foot_exp_acc[2]) =
@@ -971,12 +949,6 @@ void RobotCalcNode::legs_update() {
 
             rf_foot_exp_force[2] += roll_offset_virtual_torque * rf_leg_calc->pos_offset[1];
             lb_foot_exp_force[2] += roll_offset_virtual_torque * lb_leg_calc->pos_offset[1];
-
-            rf_foot_exp_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
-            lb_foot_exp_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
-
-            rf_foot_exp_force[1] += roll_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
-            lb_foot_exp_force[1] += roll_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
 
 
             std::tie(rf_foot_exp_pos[2], rf_foot_exp_vel[2], rf_foot_exp_acc[2]) =
