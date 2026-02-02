@@ -34,6 +34,7 @@ add_executable(leg_driver
   src/main.cpp
   src/serialnode.cpp
   src/cdc_trans.cpp
+  src/kalman_filter.cpp
 )
 
 add_executable(remote

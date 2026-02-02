@@ -10,6 +10,7 @@
 #include "sensor_msgs/msg/imu.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include <robot_interfaces/msg/move_cmd.hpp>
+#include "kalman_filter.hpp"
 
 
 
@@ -43,6 +44,12 @@ private:
     OnSetParametersCallbackHandle::SharedPtr param_server_;
 
     double joint_kp[3],joint_kd[3];
+    
+    // 卡尔曼滤波器：为每个电机的力矩提供滤波
+    // torque_filters[leg_index][joint_index] - 4条腿，每条腿3个关节
+    KalmanFilter torque_filters[4][3];
+    // wheel_torque_filters[leg_index] - 4条腿，每条腿1个轮子
+    KalmanFilter wheel_torque_filters[4];
 };
 
 #endif
