@@ -183,8 +183,12 @@
         <actuatorfrc name="rb_motor3_f" actuator="rb_motor3" noise="1e-3" />
 
         <!-- IMU (imu_main): pose/orientation + acceleration + angular velocity -->
-        <accelerometer name="imu_main_acc" site="imu" />
-        <gyro name="imu_main_gyro" site="imu" />
+        <!-- IMU (imu_main): pose/orientation + acceleration + angular velocity -->
+        <!-- 加速度计噪声：0.02 m/s² 对应中等精度 MEMS IMU -->
+        <accelerometer name="imu_main_acc" site="imu" noise="0.02"/>
+
+        <!-- 陀螺仪噪声：0.001 rad/s 对应中等精度 MEMS IMU -->
+        <gyro name="imu_main_gyro" site="imu" noise="0.001"/>
         <framequat name="imu_main_quat" objtype="site" objname="imu" />
     </sensor>
 
