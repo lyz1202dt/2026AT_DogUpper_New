@@ -132,7 +132,7 @@ void SerialNode::publishLegState(const MotorStatePack_t* legs_state) {
     // imu_angular_vel_msg.y = legs_state->JY61.AngularVelocity.Y;
     // imu_angular_vel_msg.z = legs_state->JY61.AngularVelocity.Z;
     static int csv_cnt = 0;
-    if(++csv_cnt >= 10 ) {
+    if(++csv_cnt >= 4 ) {
         double t = this->now().seconds();  // 时间戳
         rpy_csv_ << std::fixed << std::setprecision(3)
          << t << "," << legs_state->JY61.Angle.Roll << "," << legs_state->JY61.Angle.Pitch << "," << legs_state->JY61.Angle.Yaw << "\n";
