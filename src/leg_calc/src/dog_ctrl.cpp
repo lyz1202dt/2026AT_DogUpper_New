@@ -51,10 +51,10 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     node_->declare_parameter("horizontal_vmc_kd", 200.0);
     node_->declare_parameter("horizontal_vmc_mass", 3.0);
 
-    node_->declare_parameter("roll_vmc_kp", -150.0);
-    node_->declare_parameter("roll_vmc_kd", 10.0);
-    node_->declare_parameter("pitch_vmc_kp", -100.0);
-    node_->declare_parameter("pitch_vmc_kd", 10.0);
+    node_->declare_parameter("roll_vmc_kp", -60.0);
+    node_->declare_parameter("roll_vmc_kd", 6.0);
+    node_->declare_parameter("pitch_vmc_kp", -95.0);
+    node_->declare_parameter("pitch_vmc_kd", 9.0);
     node_->declare_parameter("roll_balance_force_compen", -1.0);
     node_->declare_parameter("pitch_balance_force_compen", -1.0);
     node_->declare_parameter("roll_balance_step_compen", 0.4);
