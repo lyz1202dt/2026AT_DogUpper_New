@@ -80,6 +80,14 @@ SerialNode::SerialNode()
             cdc_trans->process_once();
         }while (!exit_thread);
     });
+
+    std::string csv_path = "/home/qpz/logs/rpy_log.csv";  // 指定完整路径
+    rpy_csv_.open(csv_path, std::ios::out);
+    if (!rpy_csv_.is_open()) {
+        RCLCPP_ERROR(this->get_logger(), "打开 CSV 文件失败: %s", csv_path.c_str());
+    } else {
+        rpy_csv_ << "time,roll,pitch,yaw,qx,qy,qz,qw\n";
+    }
 }
 
 SerialNode::~SerialNode() {
@@ -91,6 +99,8 @@ SerialNode::~SerialNode() {
     if (cdc_trans) {
         cdc_trans->close();
     }
+    if(rpy_csv_.is_open())
+        rpy_csv_.close();
 }
 
 void SerialNode::publishLegState(const MotorStatePack_t* legs_state) {
@@ -108,15 +118,26 @@ void SerialNode::publishLegState(const MotorStatePack_t* legs_state) {
 
     geometry_msgs::msg::PoseStamped imu_msg;
     tf2::Quaternion q;
-    q.setRPY(legs_state->JY61.Angle.Roll, legs_state->JY61.Angle.Pitch, legs_state->JY61.Angle.Yaw);
+    q.setRPY(0.0, 0.0, 0.0);
+    //q.setRPY(legs_state->JY61.Angle.Roll, legs_state->JY61.Angle.Pitch, legs_state->JY61.Angle.Yaw);
     imu_msg.pose.orientation.x = q.x();
     imu_msg.pose.orientation.y = q.y();
     imu_msg.pose.orientation.z = q.z();
     imu_msg.pose.orientation.w = q.w();
     geometry_msgs::msg::Vector3 imu_angular_vel_msg;
-    imu_angular_vel_msg.x = legs_state->JY61.AngularVelocity.X;
-    imu_angular_vel_msg.y = legs_state->JY61.AngularVelocity.Y;
-    imu_angular_vel_msg.z = legs_state->JY61.AngularVelocity.Z;
+    imu_angular_vel_msg.x = 0.0;
+    imu_angular_vel_msg.y = 0.0;
+    imu_angular_vel_msg.z = 0.0;
+    // imu_angular_vel_msg.x = legs_state->JY61.AngularVelocity.X;
+    // imu_angular_vel_msg.y = legs_state->JY61.AngularVelocity.Y;
+    // imu_angular_vel_msg.z = legs_state->JY61.AngularVelocity.Z;
+    static int csv_cnt = 0;
+    if(++csv_cnt >= 10 ) {
+        double t = this->now().seconds();  // 时间戳
+        rpy_csv_ << std::fixed << std::setprecision(3)
+         << t << "," << legs_state->JY61.Angle.Roll << "," << legs_state->JY61.Angle.Pitch << "," << legs_state->JY61.Angle.Yaw << "\n";
+        csv_cnt = 0;
+    }
 
     state_log_print_cnt++;
     if(state_log_update_cnt==state_log_print_cnt)

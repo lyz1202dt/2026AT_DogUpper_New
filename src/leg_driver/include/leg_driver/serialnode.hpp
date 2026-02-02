@@ -9,6 +9,7 @@
 #include <thread>
 #include "sensor_msgs/msg/imu.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
+#include <fstream>
 
 class SerialNode : public rclcpp::Node
 {
@@ -36,6 +37,9 @@ private:
     rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr imu_angular_vel_pub;
     
     OnSetParametersCallbackHandle::SharedPtr param_server_;
+
+    
+    std::ofstream rpy_csv_;
 
     double joint_kp[3],joint_kd[3];
 };
