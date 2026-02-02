@@ -9,6 +9,9 @@
 #include <thread>
 #include "sensor_msgs/msg/imu.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
+#include <robot_interfaces/msg/move_cmd.hpp>
+
+
 
 class SerialNode : public rclcpp::Node
 {
@@ -26,6 +29,7 @@ private:
     bool enable_control{false};
     void legsSubscribCb(const robot_interfaces::msg::Robot &msg);
     void publishLegState(const MotorStatePack_t *legs_state);
+    void publishremote(const MotorStatePack_t* legs_remote);
 
     std::unique_ptr<CDCTrans> cdc_trans;
     std::unique_ptr<std::thread> usb_event_handle_thread;
@@ -34,6 +38,7 @@ private:
     rclcpp::Subscription<robot_interfaces::msg::Robot>::SharedPtr robot_sub;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr imu_pub;
     rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr imu_angular_vel_pub;
+    rclcpp::Publisher<robot_interfaces::msg::MoveCmd>::SharedPtr remote_pub;
     
     OnSetParametersCallbackHandle::SharedPtr param_server_;
 

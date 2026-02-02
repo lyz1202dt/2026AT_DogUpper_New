@@ -41,7 +41,7 @@ class RemoteNode :public rclcpp::Node
     ~RemoteNode() {
     // 请求线程退出并等待其结束，保证安全关闭
     exit_thread = true;
-    if (usb_event_handle_thread && usb1_event_handle_thread->joinable()) {
+    if (usb_event_handle_thread && usb_event_handle_thread->joinable()) {
         usb_event_handle_thread->join();
     }
     if (remote_cdc_trans) {
