@@ -72,7 +72,7 @@ private:
 
     std::tuple<Vector3D, Vector3D, Vector3D> signal_leg_calc(
         const Vector3D& exp_cart_pos, const Vector3D& exp_cart_vel, const Vector3D& exp_cart_acc, const Vector3D& exp_cart_force,
-        std::shared_ptr<LegCalc> leg_calc);
+        std::shared_ptr<LegCalc> leg_calc,bool &success);
     
 
     static void quaternionLowPassFilter(double& w,  double& x,  double& y,  double& z,double  w1, double  x1, double  y1, double  z1,double alpha);

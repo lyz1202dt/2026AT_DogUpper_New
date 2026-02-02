@@ -184,18 +184,22 @@ std::tuple<Vector3D, Vector3D, Vector3D> LegStep::get_target(double time, bool& 
             // 获取最高点处的z位置（应该等于step_height）
             double mid_pos_z = get_quintic_value(flight_trajectory.l1_z, half_time);
             
+            // 计算预规划曲线的末端速度（整个摆动相结束时的速度）
+            double target_vel_x = get_quintic_dt(flight_trajectory.lx, flight_trajectory.time);
+            double target_vel_y = get_quintic_dt(flight_trajectory.ly, flight_trajectory.time);
+            
             // 重新规划x方向后半段轨迹（从最高点到新的落足点）
             set_quintic(
                 flight_trajectory.lx, 
                 mid_pos_x, mid_vel_x, 0.0,  // 最高点处的状态
-                new_target_pos[0], 0.0, 0.0,  // 新的目标点，速度和加速度为0
+                new_target_pos[0], target_vel_x, 0.0,  // 新的目标点，速度为预规划的曲线的目标点速度
                 half_time);
             
             // 重新规划y方向后半段轨迹
             set_quintic(
                 flight_trajectory.ly,
                 mid_pos_y, mid_vel_y, 0.0,
-                new_target_pos[1], 0.0, 0.0,
+                new_target_pos[1], target_vel_y, 0.0,  // 新的目标点，速度为预规划的曲线的目标点速度
                 half_time);
             
             // 重新规划z方向第二段轨迹（从最高点落到新的目标高度）
