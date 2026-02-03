@@ -75,9 +75,6 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     node_->declare_parameter("step_support_rate", 0.6); // 支撑相时间
     node_->declare_parameter("step_time", 0.5);         // 一个完整步态时间（0.7共振，0.8太慢容易失衡，最好0.6）
     node_->declare_parameter("step_height", 0.08);
-
-    node_->declare_parameter("target_roll", 0.0);       // 狗子期望的当前俯仰角
-    node_->declare_parameter("target_pitch", 0.0);
     node_->declare_parameter("body_height", 0.26);
 
 
@@ -640,7 +637,7 @@ void RobotCalcNode::legs_update() {
         auto rf_target = rf_leg_step.get_target((now - setup_time).seconds(), success);
         auto lb_target = lb_leg_step.get_target((now - setup_time).seconds(), success);
         auto rb_target = rb_leg_step.get_target((now - setup_time).seconds(), success);
-        RCLCPP_INFO(node_->get_logger(), "dt=%lf", (now - setup_time).seconds());
+        //RCLCPP_INFO(node_->get_logger(), "dt=%lf", (now - setup_time).seconds());
         if ((now - setup_time).seconds() > 4.0) {
             trajectory_calced = false;
             if (setup_stage == 1) {

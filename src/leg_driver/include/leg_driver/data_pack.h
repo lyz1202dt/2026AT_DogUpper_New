@@ -1,6 +1,8 @@
 #ifndef __DATAPACK_H__
 #define __DATAPACK_H__
 
+#include <stdint.h>
+
 #pragma pack(1)
 
 typedef struct{
@@ -67,6 +69,7 @@ typedef struct{
     LegState_t leg[4];
     JY61_Typedef JY61;
     Remotepack_t remote;
+    uint16_t motor_state;
 }MotorStatePack_t;
 
 
