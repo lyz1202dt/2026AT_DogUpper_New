@@ -33,6 +33,7 @@
 #include <geometry_msgs/msg/twist.hpp>
 #include <tf2/LinearMath/Matrix3x3.hpp>
 #include <tf2/LinearMath/Quaternion.hpp>
+#include <fstream>
 
 
 
@@ -158,6 +159,7 @@ private:
 
     sensor_msgs::msg::JointState joint_display_msg;
     Vector3D comm_pos;
+    std::ofstream F_csv;
 
     // 机器人状态
     DogState robot_state{DOG_SETUP};

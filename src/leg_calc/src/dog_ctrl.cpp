@@ -39,8 +39,8 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     rb_y_vmc = std::make_shared<VMC>(160, 60, 3.0, 0.5, 0.2, 0.1, 10ms);
 
     // 狗身平衡VMC
-    roll_vmc  = std::make_shared<SimpleVMC>(-200.0, 0.0, 100);
-    pitch_vmc = std::make_shared<SimpleVMC>(500.0, 100.0, 100);
+    roll_vmc  = std::make_shared<SimpleVMC>(10.0, 0.0, 100);
+    pitch_vmc = std::make_shared<SimpleVMC>(-9.5, 0.0, 100);
 
     node_->declare_parameter("direction_filter_gate", 0.2);
     node_->declare_parameter("vmc_kp", 200.0);
@@ -51,20 +51,20 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     node_->declare_parameter("horizontal_vmc_kd", 200.0);
     node_->declare_parameter("horizontal_vmc_mass", 3.0);
 
-    node_->declare_parameter("roll_vmc_kp", -60.0);
-    node_->declare_parameter("roll_vmc_kd", 6.0);
-    node_->declare_parameter("pitch_vmc_kp", -95.0);
-    node_->declare_parameter("pitch_vmc_kd", 9.0);
-    node_->declare_parameter("roll_balance_force_compen", -1.0);
-    node_->declare_parameter("pitch_balance_force_compen", -1.0);
+    node_->declare_parameter("roll_vmc_kp", 5.0);//+
+    node_->declare_parameter("roll_vmc_kd", 0.0);
+    node_->declare_parameter("pitch_vmc_kp", -9.5);//-95//-
+    node_->declare_parameter("pitch_vmc_kd", 0.0);//9.5
+    node_->declare_parameter("roll_balance_force_compen", 0.0);
+    node_->declare_parameter("pitch_balance_force_compen", 0.0);
     node_->declare_parameter("roll_balance_step_compen", 0.4);
     node_->declare_parameter("pitch_balance_step_compen", 0.4);
 
     // ========== IMU的各腿的姿态力最大值 ==========
-    node_->declare_parameter("robot_lf_max_force",500.0);
-    node_->declare_parameter("robot_rf_max_force",500.0);
-    node_->declare_parameter("robot_lb_max_force",500.0);
-    node_->declare_parameter("robot_rb_max_force",500.0);
+    node_->declare_parameter("robot_lf_max_force",15.0);
+    node_->declare_parameter("robot_rf_max_force",15.0);
+    node_->declare_parameter("robot_lb_max_force",20.0);
+    node_->declare_parameter("robot_rb_max_force",20.0);
     node_->declare_parameter("weights_a",1.0);
 
     node_->declare_parameter("lf_grivate", 30.0);
@@ -443,9 +443,20 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     legs_update_timer = node_->create_wall_timer(10ms, std::bind(&RobotCalcNode::legs_update, this));
 
     RCLCPP_INFO(node_->get_logger(), "初始化完成");
+
+    std::string csv_path = "/home/qpz/logs/F_log.csv";  // 指定完整路径
+    F_csv.open(csv_path, std::ios::out);
+    if (!F_csv.is_open()) {
+        RCLCPP_ERROR(node_->get_logger(), "打开 CSV 文件失败: %s", csv_path.c_str());
+    } else {
+        F_csv << "time,lf,rf,lb,rb\n";
+    }
 }
 
-RobotCalcNode::~RobotCalcNode() {}
+RobotCalcNode::~RobotCalcNode() {    
+    if(F_csv.is_open())
+        F_csv.close();
+}
 
 void RobotCalcNode::show_callback() {
 
@@ -947,7 +958,6 @@ void RobotCalcNode::legs_update() {
             y_offset << lf_leg_calc->pos_offset[1], rf_leg_calc->pos_offset[1],
                         lb_leg_calc->pos_offset[1], rb_leg_calc->pos_offset[1];
             
-            F_min << -robot_lf_max_force, -robot_rf_max_force, -robot_lb_max_force, -robot_rb_max_force;
 
         // lf_foot_exp_force[2] += pitch_offset_virtual_torque * lf_leg_calc->pos_offset[0];
         // rf_foot_exp_force[2] += pitch_offset_virtual_torque * rf_leg_calc->pos_offset[0];
@@ -975,15 +985,15 @@ void RobotCalcNode::legs_update() {
             // lf_foot_exp_force[2] += pitch_offset_virtual_torque * lf_leg_calc->pos_offset[0];
             // rb_foot_exp_force[2] += pitch_offset_virtual_torque * rb_leg_calc->pos_offset[0];
 
-            lf_foot_exp_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
-            rb_foot_exp_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
+            // lf_foot_exp_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
+            // rb_foot_exp_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
 
             // TODO:计算四个足端的期望的平衡虚拟力(roll)
             // lf_foot_exp_force[2] += roll_offset_virtual_torque * lf_leg_calc->pos_offset[1];
             // rb_foot_exp_force[2] += roll_offset_virtual_torque * rb_leg_calc->pos_offset[1];
 
-            lf_foot_exp_force[1] += roll_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
-            rb_foot_exp_force[1] += roll_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
+            // lf_foot_exp_force[1] += roll_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
+            // rb_foot_exp_force[1] += roll_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
 
 
             std::tie(lf_foot_exp_pos[2], lf_foot_exp_vel[2], lf_foot_exp_acc[2]) =
@@ -998,10 +1008,12 @@ void RobotCalcNode::legs_update() {
 
                 // 支撑腿最大力
                 F_max << robot_lf_max_force, robot_rf_max_force, robot_lb_max_force, robot_rb_max_force; // step1支撑：lf+rb要与x_offer的顺序一样
+                F_min << -robot_lf_max_force, -robot_rf_max_force, -robot_lb_max_force, -robot_rb_max_force;
             } else {
                 lf_foot_exp_force += Vector3D(0.0, 0.0, -2.0 * robot_lf_grivate);
                 rb_foot_exp_force += Vector3D(0.0, 0.0, -2.0 * robot_rb_grivate);
                 F_max << robot_lf_max_force, 0.0, 0.0, robot_rb_max_force; // step1支撑：lf+rb要与x_offer的顺序一样
+                F_min << -robot_lf_max_force, 0.0, 0.0, -robot_rb_max_force;
             }
 
             std::tie(lf_foot_exp_pos[0], lf_foot_exp_vel[0], lf_foot_exp_acc[0]) = lf_x_vmc->targetUpdate(
@@ -1039,10 +1051,12 @@ void RobotCalcNode::legs_update() {
                 rf_foot_exp_force += Vector3D(0.0, 0.0, -robot_rf_grivate);
                 lb_foot_exp_force += Vector3D(0.0, 0.0, -robot_lb_grivate);
                 F_max << robot_lf_max_force, robot_rf_max_force, robot_lb_max_force, robot_rb_max_force; // step1支撑：lf+rb要与x_offer的顺序一样
+                F_min << -robot_lf_max_force, -robot_rf_max_force, -robot_lb_max_force, -robot_rb_max_force;
             } else {
                 rf_foot_exp_force += Vector3D(0.0, 0.0, -2.0 * robot_rf_grivate);
                 lb_foot_exp_force += Vector3D(0.0, 0.0, -2.0 * robot_lb_grivate);
                 F_max << 0.0, robot_rf_max_force, robot_lb_max_force, 0.0; // step1支撑：lf+rb要与x_offer的顺序一样
+                F_min << 0.0, -robot_rf_max_force, -robot_lb_max_force, 0.0;
             }
 
             std::tie(rf_foot_exp_pos[0], rf_foot_exp_vel[0], rf_foot_exp_acc[0]) =
@@ -1448,4 +1462,7 @@ void RobotCalcNode::allocateVirtualTorqueQR(
         F(i) = std::clamp(F(i), F_min(i), F_max(i));
 
     F_out = F;
+    double t = node_->get_clock()->now().seconds();  // 时间戳
+        F_csv << std::fixed << std::setprecision(4)
+         << t << "," << F_out[0] << "," << F_out[1] << "," << F_out[2] << "," << F_out[3] <<"\n";
 }

@@ -9,8 +9,8 @@
 #include <thread>
 #include "sensor_msgs/msg/imu.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
-#include <fstream>
 #include <robot_interfaces/msg/move_cmd.hpp>
+#include <fstream>
 
 
 
@@ -42,8 +42,6 @@ private:
     rclcpp::Publisher<robot_interfaces::msg::MoveCmd>::SharedPtr remote_pub;
     
     OnSetParametersCallbackHandle::SharedPtr param_server_;
-
-    
     std::ofstream rpy_csv_;
 
     double joint_kp[3],joint_kd[3];
