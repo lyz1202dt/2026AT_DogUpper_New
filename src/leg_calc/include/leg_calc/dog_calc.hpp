@@ -160,7 +160,7 @@ private:
     Vector3D comm_pos;
 
     // 机器人状态
-    DogState robot_state{DOG_SETUP};
+    DogState robot_state{DOG_IDEL};
     DogReqState robot_req_state{DOG_REQ_IDEL}; //请求的机器人状态
     double robot_lf_grivate{0.0};
     double robot_rf_grivate{0.0};
@@ -172,7 +172,7 @@ private:
 
     tf2::Quaternion robot_rotation;                    //机器人姿态
     geometry_msgs::msg::Twist robot_velocity;          //机器人速度信息
-
+double first_rf_pos_x, first_rf_pos_y, first_rf_pos_z;
 
 
     //启动过程
