@@ -11,6 +11,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Add ROS path to CMAKE_PREFIX_PATH for osqp
+list(APPEND CMAKE_PREFIX_PATH "/opt/ros/humble")
+
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -23,6 +26,7 @@ find_package(robot_interfaces REQUIRED)
 find_package(leg_driver REQUIRED)
 find_package(kdl_parser REQUIRED)
 find_package(orocos_kdl REQUIRED)
+find_package(OsqpEigen REQUIRED)
 
 find_package(Eigen3 REQUIRED PATHS /usr/include/eigen3)
 
@@ -43,7 +47,9 @@ src/main.cpp
 src/leg_calc.cpp
 src/dog_ctrl.cpp
 src/step.cpp
-src/vmc.cpp)
+src/vmc.cpp
+src/mpc.cpp
+)
 
 add_executable(test_move_node
   src/test.cpp
@@ -56,6 +62,10 @@ add_executable(test_pilet_node
 target_include_directories(leg_calc
   PUBLIC
     ${EIGEN3_INCLUDE_DIRS}
+    /usr/local/include/osqp
+    /usr/local/share/osqp/codegen_files/inc/private
+    /opt/ros/humble/include/osqp
+    OsqpEigen::OsqpEigen
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/leg_calc>
     $<INSTALL_INTERFACE:include>
 )
@@ -76,6 +86,7 @@ ament_target_dependencies(
   leg_driver
   kdl_parser
   kdl_parser
+  OsqpEigen
 )
 
 ament_target_dependencies(
