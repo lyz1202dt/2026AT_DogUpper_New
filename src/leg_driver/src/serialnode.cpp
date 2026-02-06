@@ -1,6 +1,7 @@
 #include "serialnode.hpp"
 #include "cdc_trans.hpp"
 #include "data_pack.h"
+#include "kalman_filter.hpp"
 #include <chrono>
 #include <memory>
 #include <rclcpp/logging.hpp>
@@ -17,6 +18,16 @@ SerialNode::SerialNode()
     // 初始化状态
     exit_thread           = false;
     legs_target.pack_type = 0x00;
+    
+    // 初始化卡尔曼滤波器
+    // 参数: process_noise=0.001, measurement_noise=0.1
+    // 这些参数可以根据实际电机力矩噪声特性调整
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 3; j++) {
+            torque_filters[i][j] = KalmanFilter(0.01f, 0.5f, 0.0f, 1.0f);
+        }
+        wheel_torque_filters[i] = KalmanFilter(0.01f, 0.5f, 0.0f, 1.0f);
+    }
 
     this->declare_parameter("joint1_kp", 3.0);
     this->declare_parameter("joint1_kd", 0.17);
@@ -110,6 +121,20 @@ SerialNode::~SerialNode() {
 void SerialNode::publishLegState(const MotorStatePack_t* legs_state) {
     robot_interfaces::msg::Robot msg;
     // RCLCPP_INFO(this->get_logger(), "发布电机当前状态");
+    // for (int i = 0; i < 4; i++) {
+    //     for (int j = 0; j < 3; j++) {
+    //         msg.legs[i].joints[j].rad    = legs_state->leg[i].joint[j].rad;
+    //         msg.legs[i].joints[j].omega  = legs_state->leg[i].joint[j].omega;
+    //         // 对力矩值应用卡尔曼滤波
+    //         float raw_torque = legs_state->leg[i].joint[j].torque;
+    //         msg.legs[i].joints[j].torque = torque_filters[i][j].update(raw_torque);
+    //     }
+    //     msg.legs[i].wheel.omega  = legs_state->leg[i].wheel.omega;
+    //     // 对轮子力矩值应用卡尔曼滤波
+    //     float raw_wheel_torque = legs_state->leg[i].wheel.torque;
+    //     msg.legs[i].wheel.torque = wheel_torque_filters[i].update(raw_wheel_torque);
+    // }
+
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 3; j++) {
             msg.legs[i].joints[j].rad    = legs_state->leg[i].joint[j].rad;
@@ -149,6 +174,12 @@ void SerialNode::publishLegState(const MotorStatePack_t* legs_state) {
         state_log_print_cnt = 0;
         RCLCPP_INFO(this->get_logger(), "发布电机状态");
         publishremote(legs_state);
+    }
+
+    if(legs_state->motor_state)
+    {
+        RCLCPP_INFO(get_logger(),"电机异常%d",legs_state->motor_state);
+        exit(-1);
     }
 
     robot_pub->publish(msg);

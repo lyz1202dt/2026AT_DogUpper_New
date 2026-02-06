@@ -57,6 +57,8 @@ Eigen::Vector3d LegCalc::joint_pos(const Eigen::Vector3d &foot_pos,int *result) 
     *result= ik_pos_solver.CartToJnt(last_exp_joint_pos, frame,_temp_joint3_array);
     if(*result==0)  //缓存本次计算结果,方便下一次迭代
         last_exp_joint_pos=_temp_joint3_array;
+    else
+        _temp_joint3_array=last_exp_joint_pos;  //先赋值为上一次可行的解防止失败 
     return {_temp_joint3_array(0),_temp_joint3_array(1),_temp_joint3_array(2)};
 }
 

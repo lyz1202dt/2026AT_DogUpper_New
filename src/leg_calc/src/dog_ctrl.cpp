@@ -5,6 +5,7 @@
 #include <Eigen/src/Geometry/Quaternion.h>
 #include <algorithm>
 #include <chrono>
+#include <cstdlib>
 #include <geometry_msgs/msg/detail/pose__struct.hpp>
 #include <geometry_msgs/msg/detail/vector3__struct.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
@@ -42,7 +43,7 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     roll_vmc  = std::make_shared<SimpleVMC>(10.0, 0.0, 100);
     pitch_vmc = std::make_shared<SimpleVMC>(-9.5, 0.0, 100);
 
-    node_->declare_parameter("direction_filter_gate", 0.2);
+    node_->declare_parameter("direction_filter_gate", 0.08);
     node_->declare_parameter("vmc_kp", 200.0);
     node_->declare_parameter("vmc_kd", 120.0);
     node_->declare_parameter("vmc_mass", 0.5);
@@ -81,9 +82,6 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     node_->declare_parameter("step_support_rate", 0.6); // 支撑相时间
     node_->declare_parameter("step_time", 0.5);         // 一个完整步态时间（0.7共振，0.8太慢容易失衡，最好0.6）
     node_->declare_parameter("step_height", 0.08);
-
-    node_->declare_parameter("target_roll", 0.0);       // 狗子期望的当前俯仰角
-    node_->declare_parameter("target_pitch", 0.0);
     node_->declare_parameter("body_height", 0.26);
 
 
@@ -595,6 +593,11 @@ std::tuple<Vector3D, Vector3D, Vector3D> RobotCalcNode::signal_leg_calc(
     joint_torque = leg_calc->joint_torque_foot_force(joint_pos, exp_cart_force);
     joint_torque += leg_calc->joint_torque_dynamic(joint_pos, joint_omega, exp_cart_acc);
 
+    if(result!=0)
+    {
+        RCLCPP_INFO(node_->get_logger(),"逆运动学求解失败!");
+        exit(-1);
+    }
     // robot_interfaces::msg::Leg leg;
     // for (int i = 0; i < 3; i++) {
     //     leg.joints[i].rad    = static_cast<float>(joint_pos[i]);
@@ -678,7 +681,7 @@ void RobotCalcNode::legs_update() {
         auto rf_target = rf_leg_step.get_target((now - setup_time).seconds(), success);
         auto lb_target = lb_leg_step.get_target((now - setup_time).seconds(), success);
         auto rb_target = rb_leg_step.get_target((now - setup_time).seconds(), success);
-        RCLCPP_INFO(node_->get_logger(), "dt=%lf", (now - setup_time).seconds());
+        //RCLCPP_INFO(node_->get_logger(), "dt=%lf", (now - setup_time).seconds());
         if ((now - setup_time).seconds() > 4.0) {
             trajectory_calced = false;
             if (setup_stage == 1) {
@@ -1031,8 +1034,8 @@ void RobotCalcNode::legs_update() {
             // rf_foot_exp_force[2] += pitch_offset_virtual_torque * rf_leg_calc->pos_offset[0];
             // lb_foot_exp_force[2] += pitch_offset_virtual_torque * lb_leg_calc->pos_offset[0];
 
-            // rf_foot_exp_force[2] += roll_offset_virtual_torque * rf_leg_calc->pos_offset[1];
-            // lb_foot_exp_force[2] += roll_offset_virtual_torque * lb_leg_calc->pos_offset[1];
+            rf_foot_exp_force[2] += roll_offset_virtual_torque * rf_leg_calc->pos_offset[1];
+            lb_foot_exp_force[2] += roll_offset_virtual_torque * lb_leg_calc->pos_offset[1];
 
             rf_foot_exp_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
             lb_foot_exp_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
