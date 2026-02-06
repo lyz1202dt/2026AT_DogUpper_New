@@ -1,0 +1,7 @@
+float32 except_torque
+float32 except_pos
+float32 except_omega
+float32 gm_except_position
+float32 gm_except_speed
+int16 except_up
+int16 except_low
