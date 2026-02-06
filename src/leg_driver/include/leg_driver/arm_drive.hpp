@@ -9,7 +9,6 @@
 #include "robot_interfaces/msg/motor_target.hpp"
 #include "robot_interfaces/msg/motor_state.hpp"
 
-class CDCTrans; 
 class DriveNode : public rclcpp::Node {
 public:
     DriveNode();

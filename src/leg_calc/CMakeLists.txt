@@ -45,6 +45,11 @@ src/dog_ctrl.cpp
 src/step.cpp
 src/vmc.cpp)
 
+add_executable(arm_calc
+src/arm_calc.cpp
+src/step.cpp
+src/leg_calc.cpp
+)
 add_executable(test_move_node
   src/test.cpp
 )
@@ -59,10 +64,19 @@ target_include_directories(leg_calc
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/leg_calc>
     $<INSTALL_INTERFACE:include>
 )
+target_include_directories(arm_calc
+  PUBLIC
+    ${EIGEN3_INCLUDE_DIRS}
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/leg_calc>
+    $<INSTALL_INTERFACE:include>
+)
 
 target_link_libraries(${PROJECT_NAME} ${leg_driver_LIBRARIES})
 
 target_link_libraries(leg_calc Eigen3::Eigen)
+target_link_libraries(arm_calc Eigen3::Eigen)
+
+target_compile_definitions(arm_calc PRIVATE KDL_USE_SIMD_NONE)
 
 ament_target_dependencies(
   leg_calc
@@ -77,6 +91,20 @@ ament_target_dependencies(
   kdl_parser
   kdl_parser
 )
+ament_target_dependencies(
+  arm_calc
+  rclcpp
+  geometry_msgs
+  sensor_msgs
+  visualization_msgs
+  tf2
+  tf2_ros
+  robot_interfaces
+  leg_driver
+  kdl_parser
+  kdl_parser
+)
+
 
 ament_target_dependencies(
   test_move_node
@@ -96,6 +124,7 @@ ament_target_dependencies(
 
 install(TARGETS
 leg_calc
+arm_calc
 test_move_node
 test_pilet_node
 DESTINATION lib/${PROJECT_NAME}

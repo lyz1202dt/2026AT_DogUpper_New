@@ -5,6 +5,13 @@
 
 #pragma pack(1)
 // Expect_Robstride 用于存储预期的力矩、位置、角速度以及PID参数
+typedef enum
+{
+    RobStride_01,  //!<@brief 机器人类型1
+    RobStride_02,  //!<@brief 机器人类型2
+    RobStride_03,  //!<@brief 机器人类型3
+    RobStride_04   //!<@brief 机器人类型4
+} RobStrideType;
 typedef struct
 {
     float except_torque;  //!<@brief 期望力矩
@@ -92,12 +99,6 @@ typedef struct
 } state_pack_t;
 
 // RobStrideType 枚举定义了四个不同的机器人类型
-typedef enum
-{
-    RobStride_01,  //!<@brief 机器人类型1
-    RobStride_02,  //!<@brief 机器人类型2
-    RobStride_03,  //!<@brief 机器人类型3
-    RobStride_04   //!<@brief 机器人类型4
-} RobStrideType;
+
 #pragma pack()
 #endif

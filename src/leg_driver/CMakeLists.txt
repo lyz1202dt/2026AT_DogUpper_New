@@ -36,6 +36,10 @@ add_executable(leg_driver
   src/cdc_trans.cpp
   src/kalman_filter.cpp
 )
+add_executable(arm_drive
+  src/arm_drive.cpp
+  src/cdc_trans.cpp
+)
 
 add_executable(remote
   src/remote_pub.cpp
@@ -49,6 +53,11 @@ target_include_directories(leg_driver
   $<INSTALL_INTERFACE:include>
 )
 target_include_directories(remote
+  PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/leg_driver>
+  $<INSTALL_INTERFACE:include>
+)
+target_include_directories(arm_drive
   PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/leg_driver>
   $<INSTALL_INTERFACE:include>
@@ -80,6 +89,19 @@ target_include_directories(remote
 )
 target_include_directories(remote PRIVATE ${CMAKE_SOURCE_DIR}/path_to_leg_calc)
 
+
+target_include_directories(arm_drive
+  PUBLIC
+  ${LIBUSB_INCLUDE_DIRS}
+)
+target_include_directories(arm_drive
+  PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/leg_calc>
+  $<INSTALL_INTERFACE:include>
+)
+target_include_directories(arm_drive PRIVATE ${CMAKE_SOURCE_DIR}/path_to_leg_calc)
+
+
 target_link_directories(leg_driver
   PUBLIC
   ${LIBUSB_LIBRARY_DIRS}
@@ -94,6 +116,15 @@ target_link_directories(remote
 )
 
 target_link_libraries(remote
+  ${LIBUSB_LIBRARIES}
+)
+
+target_link_directories(arm_drive
+  PUBLIC
+  ${LIBUSB_LIBRARY_DIRS}
+)
+
+target_link_libraries(arm_drive
   ${LIBUSB_LIBRARIES}
 )
 
@@ -113,10 +144,25 @@ ament_target_dependencies(leg_driver
   sensor_msgs
   tf2
   robot_interfaces)
+  ament_target_dependencies(leg_driver
+  rclcpp
+  geometry_msgs
+  sensor_msgs
+  tf2
+  robot_interfaces)
+
+  ament_target_dependencies(arm_drive
+  rclcpp
+  geometry_msgs
+  sensor_msgs
+  tf2
+  robot_interfaces)
+
 
 install(TARGETS
 leg_driver
 remote
+arm_drive
 DESTINATION lib/${PROJECT_NAME})
 
 ament_package()

@@ -1,10 +1,10 @@
 #include "arm_drive.hpp"
 #include "cdc_trans.hpp"
-#include "arm_data.h"
 #include <chrono>
 #include <memory>
 #include <rclcpp/logging.hpp>
-#include <robot_interfaces/msg/motorstate.hpp>
+#include <robot_interfaces/msg/motor_state.hpp>
+#include <robot_interfaces/msg/motor_target.hpp>
 #include <thread>
 
 using namespace std::chrono_literals;
@@ -38,7 +38,7 @@ DriveNode::~DriveNode() {
 }
 
 void DriveNode::publishState(const state_pack_t* arm_state) {
-    arm_interfaces::msg::MotorState msg;
+    robot_interfaces::msg::MotorState msg;
     msg.pos = arm_state->robstride01.state.rad;
     msg.vel = arm_state->robstride01.state.omega;
     msg.torque = arm_state->robstride01.state.torque;
@@ -46,10 +46,6 @@ void DriveNode::publishState(const state_pack_t* arm_state) {
     msg.gmvel = arm_state->GM6020.Speed;
     msg.upper = arm_state->servo2.up;
     msg.lower = arm_state->servo2.low;
-    if (arm_state->motor_state) {
-        RCLCPP_INFO(get_logger(), "电机异常%d", arm_state->motor_state);
-        exit(-1);
-    }
     arm_pub->publish(msg);
 }
 void DriveNode::subscribStarget(const robot_interfaces::msg::MotorTarget &msg)
@@ -57,7 +53,6 @@ void DriveNode::subscribStarget(const robot_interfaces::msg::MotorTarget &msg)
     pack.rob01.except_pos = msg.except_pos;
     pack.rob01.except_omega = msg.except_omega;
     pack.rob01.except_torque = msg.except_torque;
-    pack.rob02.target_pos = msg.gm_except_position;
     pack.rob02.target_vel = msg.gm_except_speed;
     pack.servo1.up = msg.except_up;
     pack.servo1.low = msg.except_low;
@@ -68,4 +63,12 @@ void DriveNode::subscribStarget(const robot_interfaces::msg::MotorTarget &msg)
     }
     first_update = false;
     cdc_trans->send_struct(pack);
+}
+int main(int argc, char * argv[])
+{
+    rclcpp::init(argc, argv);
+    auto node = std::make_shared<DriveNode>();
+    rclcpp::spin(node);
+    rclcpp::shutdown();
+    return 0;
 }
