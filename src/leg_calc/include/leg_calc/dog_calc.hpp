@@ -18,6 +18,7 @@
 #include <kdl_parser/kdl_parser.hpp>
 #include <memory>
 #include <rclcpp/parameter.hpp>
+#include <rclcpp/publisher.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/subscription.hpp>
 #include <robot_interfaces/msg/robot.hpp>
@@ -25,6 +26,8 @@
 #include <sensor_msgs/msg/detail/imu__struct.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
 #include <std_msgs/msg/color_rgba.hpp>
+#include <std_msgs/msg/detail/float64__struct.hpp>
+#include <std_msgs/msg/detail/float64_multi_array__struct.hpp>
 #include <tuple>
 #include <visualization_msgs/msg/marker_array.hpp>
 #include <visualization_msgs/msg/marker.hpp>
@@ -34,6 +37,7 @@
 #include <tf2/LinearMath/Matrix3x3.hpp>
 #include <tf2/LinearMath/Quaternion.hpp>
 #include <fstream>
+#include <std_msgs/msg/float64_multi_array.hpp>
 
 
 
@@ -70,7 +74,7 @@ private:
 
     void show_callback();
     void legs_update();
-
+    void publishRqtForce(const Eigen::Vector4d& F);
     std::tuple<Vector3D, Vector3D, Vector3D> signal_leg_calc(
         const Vector3D& exp_cart_pos, const Vector3D& exp_cart_vel, const Vector3D& exp_cart_acc, const Vector3D& exp_cart_force,
         std::shared_ptr<LegCalc> leg_calc);
@@ -189,4 +193,9 @@ private:
     rclcpp::Time cross_wall_stage_time;
     Vector3D wall_lf_foot_pos,wall_rf_foot_pos,wall_lb_foot_pos,wall_rb_foot_pos;
     bool enable_posture_safe{true};
+
+    //rqt 测
+    rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr rqt_pub_;
+
+
 };

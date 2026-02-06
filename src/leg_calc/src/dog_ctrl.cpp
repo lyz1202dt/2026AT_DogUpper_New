@@ -5,6 +5,7 @@
 #include <Eigen/src/Geometry/Quaternion.h>
 #include <algorithm>
 #include <chrono>
+#include <cstdint>
 #include <cstdlib>
 #include <geometry_msgs/msg/detail/pose__struct.hpp>
 #include <geometry_msgs/msg/detail/vector3__struct.hpp>
@@ -16,6 +17,7 @@
 #include <robot_interfaces/msg/robot.hpp>
 #include <sensor_msgs/msg/detail/imu__struct.hpp>
 #include <sensor_msgs/msg/imu.hpp>
+#include <std_msgs/msg/detail/float64__struct.hpp>
 #include <tf2/LinearMath/Quaternion.hpp>
 #include <tuple>
 #include <visualization_msgs/msg/marker.hpp>
@@ -301,6 +303,9 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
 
 
     robot_rotation.setRPY(0.0, 0.0, 0.0);
+
+    //rqt测量话题发布
+    rqt_pub_ = node_->create_publisher<std_msgs::msg::Float64MultiArray>("rqt_pub", 10);
 
     marker_publisher = node_->create_publisher<visualization_msgs::msg::MarkerArray>("visualization_marker_array", 10);
 
@@ -741,7 +746,7 @@ void RobotCalcNode::legs_update() {
         rf_foot_exp_force[2] += F_out(1);
         lb_foot_exp_force[2] += F_out(2);
         rb_foot_exp_force[2] += F_out(3);
-
+            publishRqtForce(F_out);
 
         auto lf_cart_pos   = lf_leg_calc->foot_pos(lf_joint_pos);
         auto lf_cart_vel   = lf_leg_calc->foot_vel(lf_joint_pos, lf_joint_vel);
@@ -1034,14 +1039,14 @@ void RobotCalcNode::legs_update() {
             // rf_foot_exp_force[2] += pitch_offset_virtual_torque * rf_leg_calc->pos_offset[0];
             // lb_foot_exp_force[2] += pitch_offset_virtual_torque * lb_leg_calc->pos_offset[0];
 
-            rf_foot_exp_force[2] += roll_offset_virtual_torque * rf_leg_calc->pos_offset[1];
-            lb_foot_exp_force[2] += roll_offset_virtual_torque * lb_leg_calc->pos_offset[1];
+            // rf_foot_exp_force[2] += roll_offset_virtual_torque * rf_leg_calc->pos_offset[1];
+            // lb_foot_exp_force[2] += roll_offset_virtual_torque * lb_leg_calc->pos_offset[1];
 
-            rf_foot_exp_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
-            lb_foot_exp_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
+            // rf_foot_exp_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
+            // lb_foot_exp_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
 
-            rf_foot_exp_force[1] += roll_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
-            lb_foot_exp_force[1] += roll_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
+            // rf_foot_exp_force[1] += roll_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
+            // lb_foot_exp_force[1] += roll_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
 
 
             std::tie(rf_foot_exp_pos[2], rf_foot_exp_vel[2], rf_foot_exp_acc[2]) =
@@ -1080,6 +1085,7 @@ void RobotCalcNode::legs_update() {
         rf_foot_exp_force[2] += F_out(1);
         lb_foot_exp_force[2] += F_out(2);
         rb_foot_exp_force[2] += F_out(3);
+            publishRqtForce(F_out);
     } else if (robot_state == DOG_ENDING) {
         Vector3D lf_foot_exp_pos, rf_foot_exp_pos, lb_foot_exp_pos, rb_foot_exp_pos;
         Vector3D lf_foot_exp_force, rf_foot_exp_force, lb_foot_exp_force, rb_foot_exp_force;
@@ -1468,4 +1474,17 @@ void RobotCalcNode::allocateVirtualTorqueQR(
     double t = node_->get_clock()->now().seconds();  // 时间戳
         F_csv << std::fixed << std::setprecision(4)
          << t << "," << F_out[0] << "," << F_out[1] << "," << F_out[2] << "," << F_out[3] <<"\n";
+}
+
+
+
+void RobotCalcNode::publishRqtForce(const Eigen::Vector4d& F)
+{
+    std_msgs::msg::Float64MultiArray msg;
+    msg.data.resize(4);
+
+    for (int i = 0; i < 4; i++)
+        msg.data[i] = F[i];
+
+    rqt_pub_->publish(msg);
 }
