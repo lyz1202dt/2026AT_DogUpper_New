@@ -1355,7 +1355,7 @@ void RobotCalcNode::legs_update() {
                 wall_lb_foot_pos=lb_foot_exp_pos;
                 wall_rb_foot_pos=rb_foot_exp_pos;
                 
-                rb_leg_step.update_support_trajectory(wall_rb_foot_pos,Vector3D(-0.3,0.0,-0.05),1.0);
+                rb_leg_step.update_support_trajectory(wall_rb_foot_pos,Vector3D(-0.15,0.0,-0.05),1.0);
                 cross_wall_stage_time=node_->get_clock()->now();
                 cross_wall_stage=17;
             }
