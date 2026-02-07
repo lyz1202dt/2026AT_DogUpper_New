@@ -54,7 +54,7 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     node_->declare_parameter("horizontal_vmc_kd", 200.0);
     node_->declare_parameter("horizontal_vmc_mass", 3.0);
 
-    node_->declare_parameter("roll_vmc_kp", 5.0);//+
+    node_->declare_parameter("roll_vmc_kp", 5.0);//-
     node_->declare_parameter("roll_vmc_kd", 0.0);
     node_->declare_parameter("pitch_vmc_kp", -9.5);//-95//-
     node_->declare_parameter("pitch_vmc_kd", 0.0);//9.5
@@ -305,7 +305,7 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node) {
     robot_rotation.setRPY(0.0, 0.0, 0.0);
 
     //rqt测量话题发布
-    rqt_pub_ = node_->create_publisher<std_msgs::msg::Float64MultiArray>("rqt_pub", 10);
+    rqt_pub_ = node_->create_publisher<robot_interfaces::msg::Rqt>("rqt_pub", 10);
 
     marker_publisher = node_->create_publisher<visualization_msgs::msg::MarkerArray>("visualization_marker_array", 10);
 
@@ -1480,11 +1480,11 @@ void RobotCalcNode::allocateVirtualTorqueQR(
 
 void RobotCalcNode::publishRqtForce(const Eigen::Vector4d& F)
 {
-    std_msgs::msg::Float64MultiArray msg;
-    msg.data.resize(4);
-
-    for (int i = 0; i < 4; i++)
-        msg.data[i] = F[i];
+    robot_interfaces::msg::Rqt msg;
+    msg.data.lf_force_rpy = F[0];
+    msg.data.rf_force_rpy = F[1];
+    msg.data.lb_force_rpy = F[2];
+    msg.data.rb_force_rpy = F[3];
 
     rqt_pub_->publish(msg);
 }

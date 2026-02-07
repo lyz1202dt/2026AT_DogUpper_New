@@ -21,6 +21,7 @@
 #include <rclcpp/publisher.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/subscription.hpp>
+#include <robot_interfaces/msg/detail/rqt__struct.hpp>
 #include <robot_interfaces/msg/robot.hpp>
 #include <robot_interfaces/msg/move_cmd.hpp>
 #include <sensor_msgs/msg/detail/imu__struct.hpp>
@@ -38,6 +39,7 @@
 #include <tf2/LinearMath/Quaternion.hpp>
 #include <fstream>
 #include <std_msgs/msg/float64_multi_array.hpp>
+#include <robot_interfaces/msg/rqt.hpp>
 
 
 
@@ -195,7 +197,7 @@ private:
     bool enable_posture_safe{true};
 
     //rqt 测
-    rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr rqt_pub_;
+    rclcpp::Publisher<robot_interfaces::msg::Rqt>::SharedPtr rqt_pub_;
 
 
 };

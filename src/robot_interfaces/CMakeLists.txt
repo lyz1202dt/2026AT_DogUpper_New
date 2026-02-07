@@ -20,6 +20,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Robot.msg"
   "msg/Wheel.msg"
   "msg/MoveCmd.msg"
+  "msg/Data.msg"
+  "msg/Rqt.msg"
 )
 
 if(BUILD_TESTING)
