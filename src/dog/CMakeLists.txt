@@ -14,6 +14,9 @@ find_package(ament_cmake REQUIRED)
 install(DIRECTORY model
   DESTINATION share/${PROJECT_NAME}/
 )
+install(DIRECTORY arm
+  DESTINATION share/${PROJECT_NAME}/
+)
 
 
 if(BUILD_TESTING)
