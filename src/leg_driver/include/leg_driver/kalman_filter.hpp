@@ -38,6 +38,30 @@ public:
      */
     float getEstimate() const { return x_est; }
 
+    /**
+     * @brief 设置过程噪声协方差 Q
+     * @param process_noise 新的过程噪声协方差值
+     */
+    void setProcessNoise(float process_noise) { Q = process_noise; }
+
+    /**
+     * @brief 设置测量噪声协方差 R
+     * @param measurement_noise 新的测量噪声协方差值
+     */
+    void setMeasurementNoise(float measurement_noise) { R = measurement_noise; }
+
+    /**
+     * @brief 获取当前 Q 值
+     * @return 过程噪声协方差 Q
+     */
+    float getProcessNoise() const { return Q; }
+
+    /**
+     * @brief 获取当前 R 值
+     * @return 测量噪声协方差 R
+     */
+    float getMeasurementNoise() const { return R; }
+
 private:
     float x_est;    // 状态估计值（力矩估计）
     float P;        // 误差协方差

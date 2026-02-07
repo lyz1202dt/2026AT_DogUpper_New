@@ -45,9 +45,7 @@ public:
     enum DogState {                //机器人底层状态(控制机器人前进，后退，自旋，姿态,或者更底层的操作比如设置落脚点)
         DOG_IDEL,
         DOG_STOP,
-        DOG_STARTING,
-        DOG_SETP,
-        DOG_ENDING,
+        DOG_STEP,
 
         DOG_CROSSWALL,
 

@@ -37,11 +37,24 @@ static inline double get_quintic_dtdt(const LegStep::QuinticLineParam_t& line, c
     return 2.0f * line.c + 6.0f * line.d * time + 12.0f * line.e * time * time + 20.0f * line.f * time * time * time;
 }
 
-LegStep::LegStep() {}
+LegStep::LegStep(const double x_limit,const double y_limit) {
+    this->x_limit=x_limit;
+    this->y_limit=y_limit;
+}
 
 void LegStep::update_support_trajectory(const Vector3D& cur_pos, const Vector2D& exp_vel, double time) {
     double target_x = -exp_vel[0] * time * 0.5;            // 理想情况下，足端轨迹中心应该过足端坐标系的中点
     double target_y = -exp_vel[1] * time * 0.5;
+
+    if(target_x>x_limit)
+        target_x=x_limit;
+    else if(target_x<-x_limit)
+        target_x=-x_limit;
+
+    if(target_y>y_limit)
+        target_y=y_limit;
+    else if(target_y<-y_limit)
+        target_y=-y_limit;
 
     support_trajectory.time = time;                        // 记录一个步态相位的时间
 
@@ -78,6 +91,16 @@ void LegStep::update_flight_trajectory(
     const Vector3D& cur_pos, const Vector3D& cur_vel, const Vector2D& exp_vel, const double time, const double step_height,const double target_height,const double x_offset,const double y_offset) {
     double target_x = exp_vel[0] * time * 0.5+x_offset;
     double target_y = exp_vel[1] * time * 0.5+y_offset;
+
+    if(target_x>x_limit)
+        target_x=x_limit;
+    else if(target_x<-x_limit)
+        target_x=-x_limit;
+
+    if(target_y>y_limit)
+        target_y=y_limit;
+    else if(target_y<-y_limit)
+        target_y=-y_limit;
 
     flight_trajectory.time = time;
 
@@ -129,6 +152,17 @@ void LegStep::update_flight_trajectory(
     // 计算初始规划的落足点
     double target_x = exp_vel[0] * time * 0.5 + x_offset;
     double target_y = exp_vel[1] * time * 0.5 + y_offset;
+
+    if(target_x>x_limit)
+        target_x=x_limit;
+    else if(target_x<-x_limit)
+        target_x=-x_limit;
+
+    if(target_y>y_limit)
+        target_y=y_limit;
+    else if(target_y<-y_limit)
+        target_y=-y_limit;
+    
     initial_target_pos = Vector3D(target_x, target_y, target_height);
 
     flight_trajectory.time = time;

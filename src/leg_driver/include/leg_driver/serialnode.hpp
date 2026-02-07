@@ -50,6 +50,9 @@ private:
     KalmanFilter torque_filters[4][3];
     // wheel_torque_filters[leg_index] - 4条腿，每条腿1个轮子
     KalmanFilter wheel_torque_filters[4];
+
+    rclcpp::Time base_time;
+    bool runned{false};
 };
 
 #endif

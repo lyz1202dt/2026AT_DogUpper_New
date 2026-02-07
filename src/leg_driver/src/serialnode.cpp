@@ -24,9 +24,9 @@ SerialNode::SerialNode()
     // 这些参数可以根据实际电机力矩噪声特性调整
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 3; j++) {
-            torque_filters[i][j] = KalmanFilter(0.01f, 0.5f, 0.0f, 1.0f);
+            torque_filters[i][j] = KalmanFilter(0.005f, 0.02f, 0.0f, 1.0f);
         }
-        wheel_torque_filters[i] = KalmanFilter(0.01f, 0.5f, 0.0f, 1.0f);
+        wheel_torque_filters[i] = KalmanFilter(0.001f, 0.5f, 0.0f, 1.0f);
     }
 
     this->declare_parameter("joint1_kp", 3.0);
@@ -35,25 +35,88 @@ SerialNode::SerialNode()
     this->declare_parameter("joint2_kd", 0.14);
     this->declare_parameter("joint3_kp", 2.8);
     this->declare_parameter("joint3_kd", 0.11);
+    
+    // 声明关节卡尔曼滤波器参数
+    this->declare_parameter("joint_kalman_filter_q", 0.005);
+    this->declare_parameter("joint_kalman_filter_r", 0.02);
+    
+    // 声明轮子卡尔曼滤波器参数
+    this->declare_parameter("wheel_kalman_filter_q", 0.001);
+    this->declare_parameter("wheel_kalman_filter_r", 0.5);
 
     param_server_ = this->add_on_set_parameters_callback([this](const std::vector<rclcpp::Parameter>& params) {
         rcl_interfaces::msg::SetParametersResult result;
         result.successful = true;
-        RCLCPP_INFO(this->get_logger(), "更新PID参数");
+        
+        bool pid_updated = false;
+        
         for (const auto& param : params) {
-            if (param.get_name() == "joint1_kp")
+            if (param.get_name() == "joint1_kp") {
                 joint_kp[0] = param.as_double();
-            else if (param.get_name() == "joint1_kd")
+                pid_updated = true;
+            }
+            else if (param.get_name() == "joint1_kd") {
                 joint_kd[0] = param.as_double();
-            else if (param.get_name() == "joint2_kp")
+                pid_updated = true;
+            }
+            else if (param.get_name() == "joint2_kp") {
                 joint_kp[1] = param.as_double();
-            else if (param.get_name() == "joint2_kd")
+                pid_updated = true;
+            }
+            else if (param.get_name() == "joint2_kd") {
                 joint_kd[1] = param.as_double();
-            else if (param.get_name() == "joint3_kp")
+                pid_updated = true;
+            }
+            else if (param.get_name() == "joint3_kp") {
                 joint_kp[2] = param.as_double();
-            else if (param.get_name() == "joint3_kd")
+                pid_updated = true;
+            }
+            else if (param.get_name() == "joint3_kd") {
                 joint_kd[2] = param.as_double();
+                pid_updated = true;
+            }
+            else if (param.get_name() == "joint_kalman_filter_q") {
+                float q_value = static_cast<float>(param.as_double());
+                // 更新所有关节卡尔曼滤波器的 Q 值
+                for (int i = 0; i < 4; i++) {
+                    for (int j = 0; j < 3; j++) {
+                        torque_filters[i][j].setProcessNoise(q_value);
+                    }
+                }
+                RCLCPP_INFO(this->get_logger(), "更新关节卡尔曼滤波器 Q 参数: %.6f", q_value);
+            }
+            else if (param.get_name() == "joint_kalman_filter_r") {
+                float r_value = static_cast<float>(param.as_double());
+                // 更新所有关节卡尔曼滤波器的 R 值
+                for (int i = 0; i < 4; i++) {
+                    for (int j = 0; j < 3; j++) {
+                        torque_filters[i][j].setMeasurementNoise(r_value);
+                    }
+                }
+                RCLCPP_INFO(this->get_logger(), "更新关节卡尔曼滤波器 R 参数: %.6f", r_value);
+            }
+            else if (param.get_name() == "wheel_kalman_filter_q") {
+                float q_value = static_cast<float>(param.as_double());
+                // 更新所有轮子卡尔曼滤波器的 Q 值
+                for (int i = 0; i < 4; i++) {
+                    wheel_torque_filters[i].setProcessNoise(q_value);
+                }
+                RCLCPP_INFO(this->get_logger(), "更新轮子卡尔曼滤波器 Q 参数: %.6f", q_value);
+            }
+            else if (param.get_name() == "wheel_kalman_filter_r") {
+                float r_value = static_cast<float>(param.as_double());
+                // 更新所有轮子卡尔曼滤波器的 R 值
+                for (int i = 0; i < 4; i++) {
+                    wheel_torque_filters[i].setMeasurementNoise(r_value);
+                }
+                RCLCPP_INFO(this->get_logger(), "更新轮子卡尔曼滤波器 R 参数: %.6f", r_value);
+            }
         }
+        
+        if (pid_updated) {
+            RCLCPP_INFO(this->get_logger(), "更新 PID 参数");
+        }
+        
         return result;
     });
 
@@ -96,6 +159,8 @@ SerialNode::SerialNode()
             cdc_trans->process_once();
         } while (!exit_thread);
     });
+
+    base_time=this->get_clock()->now();
 }
 
 SerialNode::~SerialNode() {
@@ -111,30 +176,29 @@ SerialNode::~SerialNode() {
 
 void SerialNode::publishLegState(const MotorStatePack_t* legs_state) {
     robot_interfaces::msg::Robot msg;
-    // RCLCPP_INFO(this->get_logger(), "发布电机当前状态");
-    // for (int i = 0; i < 4; i++) {
-    //     for (int j = 0; j < 3; j++) {
-    //         msg.legs[i].joints[j].rad    = legs_state->leg[i].joint[j].rad;
-    //         msg.legs[i].joints[j].omega  = legs_state->leg[i].joint[j].omega;
-    //         // 对力矩值应用卡尔曼滤波
-    //         float raw_torque = legs_state->leg[i].joint[j].torque;
-    //         msg.legs[i].joints[j].torque = torque_filters[i][j].update(raw_torque);
-    //     }
-    //     msg.legs[i].wheel.omega  = legs_state->leg[i].wheel.omega;
-    //     // 对轮子力矩值应用卡尔曼滤波
-    //     float raw_wheel_torque = legs_state->leg[i].wheel.torque;
-    //     msg.legs[i].wheel.torque = wheel_torque_filters[i].update(raw_wheel_torque);
-    // }
-
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 3; j++) {
             msg.legs[i].joints[j].rad    = legs_state->leg[i].joint[j].rad;
             msg.legs[i].joints[j].omega  = legs_state->leg[i].joint[j].omega;
-            msg.legs[i].joints[j].torque = legs_state->leg[i].joint[j].torque;
+            // 对力矩值应用卡尔曼滤波
+            float raw_torque = legs_state->leg[i].joint[j].torque;
+            msg.legs[i].joints[j].torque = torque_filters[i][j].update(raw_torque);
         }
         msg.legs[i].wheel.omega  = legs_state->leg[i].wheel.omega;
-        msg.legs[i].wheel.torque = legs_state->leg[i].wheel.torque;
+        // 对轮子力矩值应用卡尔曼滤波
+        float raw_wheel_torque = legs_state->leg[i].wheel.torque;
+        msg.legs[i].wheel.torque = wheel_torque_filters[i].update(raw_wheel_torque);
     }
+
+    // for (int i = 0; i < 4; i++) {
+    //     for (int j = 0; j < 3; j++) {
+    //         msg.legs[i].joints[j].rad    = legs_state->leg[i].joint[j].rad;
+    //         msg.legs[i].joints[j].omega  = legs_state->leg[i].joint[j].omega;
+    //         msg.legs[i].joints[j].torque = legs_state->leg[i].joint[j].torque;
+    //     }
+    //     msg.legs[i].wheel.omega  = legs_state->leg[i].wheel.omega;
+    //     msg.legs[i].wheel.torque = legs_state->leg[i].wheel.torque;
+    // }
 
     geometry_msgs::msg::PoseStamped imu_msg;
     tf2::Quaternion q;
@@ -197,13 +261,23 @@ void SerialNode::publishremote(const MotorStatePack_t* legs_remote) {
     remote_msg.vy                 = legs_remote->remote.vy;
     remote_msg.vz                 = legs_remote->remote.omega;
     remote_msg.wheel_vel          = legs_remote->remote.wheel_v;
+
     if(std::abs(remote_msg.vx)>0.01||std::abs(remote_msg.vy)>0.01||std::abs(remote_msg.vz)>0.01)
+    {
+        base_time=this->get_clock()->now();
         remote_msg.step_mode=2;
+        runned=true;
+    }
+    else if((this->get_clock()->now()-base_time).seconds()<2.0&&runned)
+    {
+        remote_msg.step_mode=2;
+    }
     else
         remote_msg.step_mode=1;
+
     RCLCPP_INFO(
         this->get_logger(),
-        "legs_remote->remote.vx %f, legs_remote->remote.vy %f, legs_remote->remote.omega %f, legs_remote->remote.wheel_v %f,imu_r %f",
-        legs_remote->remote.vx, legs_remote->remote.vy, legs_remote->remote.omega, legs_remote->remote.wheel_v,legs_remote->JY61.Angle.Roll);
+        "remote.vx %f,imu_r %f",
+        legs_remote->remote.vx,legs_remote->JY61.Angle.Pitch);
     remote_pub->publish(remote_msg);
 }

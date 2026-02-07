@@ -53,7 +53,7 @@ public:
 
 
 
-    LegStep();
+    LegStep(const double x_limit,const double y_limit);
     void update_flight_trajectory(const Vector3D& cur_pos, const Vector3D& cur_vel, const Vector2D& exp_vel, const double time, const double step_height,const double target_height=0.0,const double x_offset=0.0,const double y_offset=0.0);
     void update_flight_trajectory(
         const Vector3D& cur_pos, const Vector3D& cur_vel, const Vector3D& exp_pos, const Vector2D& exp_vel, const double time, const double step_height);
@@ -72,6 +72,8 @@ private:
     StepTrajectory_t flight_trajectory;
     SupportTrajectory_t support_trajectory;
     
+    double x_limit;
+    double y_limit;
     // 中途重新规划相关变量
     bool needs_mid_replanning{false};           // 是否需要中途重新规划
     bool mid_replanning_done{false};            // 是否已完成中途重新规划
