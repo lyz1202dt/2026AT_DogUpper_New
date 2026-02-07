@@ -17,11 +17,14 @@ ArmCalcNode::ArmCalcNode() : rclcpp::Node("arm_calc_node"),
     last_exp_joint_pos(4),
     temp_jacobain(4)
 {
+    robot_description_param_ = std::make_shared<rclcpp::SyncParametersClient>(this, "/robot_state_publisher");
     auto params = robot_description_param_->get_parameters({"robot_description"});
     urdf_xml    = params[0].as_string();
        if (urdf_xml.empty()) {
         RCLCPP_ERROR(this->get_logger(), "无法读取URDF文件，不能进行动力学计算");
         return;
+    }else{
+        RCLCPP_INFO(this->get_logger(), "URDF文件读取成功");
     }
     kdl_parser::treeFromString(urdf_xml, tree);
     tree.getChain("base_link", "link4", chain);

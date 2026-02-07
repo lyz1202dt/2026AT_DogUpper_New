@@ -47,7 +47,6 @@ src/vmc.cpp)
 
 add_executable(arm_calc
 src/arm_calc.cpp
-src/step.cpp
 )
 add_executable(test_move_node
   src/test.cpp
