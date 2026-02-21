@@ -667,10 +667,10 @@ void RobotCalcNode::legs_update() {
         lb_cart_force[2] += pitch_offset_virtual_torque * lb_leg_calc->pos_offset[0];
         rb_cart_force[2] += pitch_offset_virtual_torque * rb_leg_calc->pos_offset[0];
 
-        lf_cart_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
-        rf_cart_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
-        lb_cart_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
-        rb_cart_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
+        // lf_cart_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
+        // rf_cart_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
+        // lb_cart_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
+        // rb_cart_force[0] += pitch_offset_virtual_torque * std::sin(cur_pitch) * pitch_balance_force_compen;
 
         // TODO:计算四个足端的期望的平衡力
         lf_cart_force[2] += roll_offset_virtual_torque * lf_leg_calc->pos_offset[1];
@@ -678,10 +678,10 @@ void RobotCalcNode::legs_update() {
         lb_cart_force[2] += roll_offset_virtual_torque * lb_leg_calc->pos_offset[1];
         rb_cart_force[2] += roll_offset_virtual_torque * rb_leg_calc->pos_offset[1];
 
-        lf_cart_force[1] += pitch_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
-        rf_cart_force[1] += pitch_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
-        lb_cart_force[1] += pitch_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
-        rb_cart_force[1] += pitch_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
+        // lf_cart_force[1] += pitch_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
+        // rf_cart_force[1] += pitch_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
+        // lb_cart_force[1] += pitch_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
+        // rb_cart_force[1] += pitch_offset_virtual_torque * std::sin(cur_roll) * roll_balance_force_compen;
 
 
         Vector3D legs_motor_torque[4];
