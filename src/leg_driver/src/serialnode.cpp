@@ -24,7 +24,7 @@ SerialNode::SerialNode()
     // 这些参数可以根据实际电机力矩噪声特性调整
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 3; j++) {
-            torque_filters[i][j] = KalmanFilter(0.005f, 0.02f, 0.0f, 1.0f);
+            torque_filters[i][j] = KalmanFilter(0.005f, 0.01f, 0.0f, 1.0f);
         }
         wheel_torque_filters[i] = KalmanFilter(0.001f, 0.5f, 0.0f, 1.0f);
     }

@@ -30,10 +30,10 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node)
     , lb_leg_step(0.13, 0.13)
     , rb_leg_step(0.13, 0.13) {
     node_    = node;
-    lf_z_vmc = std::make_shared<VMC>(500, 120, 4.0, 0.5, 0.2, 0.06, 10ms);
-    rf_z_vmc = std::make_shared<VMC>(500, 120, 4.0, 0.5, 0.2, 0.06, 10ms);
-    lb_z_vmc = std::make_shared<VMC>(500, 120, 4.0, 0.5, 0.2, 0.06, 10ms);
-    rb_z_vmc = std::make_shared<VMC>(500, 120, 4.0, 0.5, 0.2, 0.06, 10ms);
+    lf_z_vmc = std::make_shared<VMC>(500, 120, 4.0, 1.0, 0.2, 0.06, 10ms);
+    rf_z_vmc = std::make_shared<VMC>(500, 120, 4.0, 1.0, 0.2, 0.06, 10ms);
+    lb_z_vmc = std::make_shared<VMC>(500, 120, 4.0, 1.0, 0.2, 0.06, 10ms);
+    rb_z_vmc = std::make_shared<VMC>(500, 120, 4.0, 1.0, 0.2, 0.06, 10ms);
 
     lf_x_vmc = std::make_shared<VMC>(160, 60, 3.0, 0.5, 0.2, 0.13, 10ms);
     lf_y_vmc = std::make_shared<VMC>(160, 60, 3.0, 0.5, 0.2, 0.13, 10ms);
@@ -49,8 +49,8 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node)
     pitch_vmc = std::make_shared<SimpleVMC>(500.0, 100.0, 100);
 
     node_->declare_parameter("direction_filter_gate", 0.08);
-    node_->declare_parameter("vmc_kp", 100.0);
-    node_->declare_parameter("vmc_kd", 80.0);
+    node_->declare_parameter("vmc_kp", 150.0);
+    node_->declare_parameter("vmc_kd", 100.0);
     node_->declare_parameter("vmc_mass", 0.5);
 
     node_->declare_parameter("horizontal_vmc_kp", 400.0);
@@ -63,8 +63,8 @@ RobotCalcNode::RobotCalcNode(const rclcpp::Node::SharedPtr node)
     node_->declare_parameter("pitch_vmc_kd", 0.0);
     node_->declare_parameter("roll_balance_force_compen", 0.0);
     node_->declare_parameter("pitch_balance_force_compen", 0.0);
-    node_->declare_parameter("roll_balance_step_compen", 0.4);
-    node_->declare_parameter("pitch_balance_step_compen", 0.4);
+    node_->declare_parameter("roll_balance_step_compen", 0.3);
+    node_->declare_parameter("pitch_balance_step_compen", 0.3);
 
     node_->declare_parameter("lf_grivate", 30.0);
     node_->declare_parameter("rf_grivate", 30.0);
