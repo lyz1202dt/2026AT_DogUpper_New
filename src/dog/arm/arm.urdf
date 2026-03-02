@@ -97,8 +97,8 @@
     <axis
       xyz="0 0 -1" />
     <limit
-      lower="0"
-      upper="0"
+      lower="-1"
+      upper="1"
       effort="0"
       velocity="0" />
   </joint>
@@ -149,14 +149,14 @@
       xyz="0.3275 -0.0435 0.0985"
       rpy="1.5708 0 0" />
     <parent
-      link="base_link" />
+      link="link1" />
     <child
       link="link2" />
     <axis
-      xyz="0 1 0" />
+      xyz="0 0 1" />
     <limit
-      lower="0"
-      upper="0"
+      lower="-1"
+      upper="1"
       effort="0"
       velocity="0" />
   </joint>
@@ -207,14 +207,14 @@
       xyz="0.6675 0 0.0985"
       rpy="1.5708 0 0" />
     <parent
-      link="base_link" />
+      link="link2" />
     <child
       link="link3" />
     <axis
-      xyz="0 1 0" />
+      xyz="0 0 1" />
     <limit
-      lower="0"
-      upper="0"
+      lower="-1"
+      upper="1"
       effort="0"
       velocity="0" />
   </joint>
@@ -265,14 +265,14 @@
       xyz="0.8375 0.02375 0.078344"
       rpy="1.5708 0 0" />
     <parent
-      link="base_link" />
+      link="link3" />
     <child
       link="link4" />
     <axis
-      xyz="0 1 0" />
+      xyz="0 0 1" />
     <limit
-      lower="0"
-      upper="0"
+      lower="-1"
+      upper="1"
       effort="0"
       velocity="0" />
   </joint>

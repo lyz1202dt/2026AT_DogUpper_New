@@ -95,8 +95,6 @@ private:
     KDL::JntArray _temp_joint2_array;
 
     // 控制参数
-    double control_dt = 0.01;
-    double current_t = 0.0;
     double traj_total_time = 1.0;
 
     // 关节/末端状态
@@ -125,4 +123,10 @@ private:
     Vector3D arm_end_pos(const Eigen::Vector4d& joint_rad);
     Vector3D arm_end_vel(const Eigen::Vector4d& joint_rad, const Vector2D& joint_omega);
     Eigen::Vector4d joints_pos(const Vector3D& end_pos, int* result);
+    void init_kdl_solvers() {
+        fk_solver = std::make_unique<KDL::ChainFkSolverPos_recursive>(chain);
+        Eigen::Vector<double,6> weights(1.0, 1.0, 1.0, 0.0,1.0, 0.0);
+        ik_pos_solver = std::make_unique<KDL::ChainIkSolverPos_LMA>(chain, weights, 1e-6, 150, 1e-10);
+        jacobain_solver = std::make_unique<KDL::ChainJntToJacSolver>(chain);
+    }
 };

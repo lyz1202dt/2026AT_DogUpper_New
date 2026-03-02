@@ -18,13 +18,23 @@ DriveNode::DriveNode() : rclcpp::Node("driver_node") {
         if (size == sizeof(state_pack_t)) 
         {
             const state_pack_t* pack = reinterpret_cast<const state_pack_t*>(data);
-            if (pack->pack_type == 0)         // 确认包类型正确
+            if (pack->pack_type == 1)         // 确认包类型正确
                 publishState(pack);        // 一旦接收，立即发布狗腿状态
             else
                 RCLCPP_ERROR(this->get_logger(), "接收到错误的数据包类型%d", pack->pack_type);
         }
     });
+     if (!cdc_trans->open(0x0483, 0x5740))     // 开启USB_CDC传输接口
+        exit_thread = true;
+
+    // 创建线程处理CDC消息（在 open 之后、publisher 创建之后）
+    usb_event_handle_thread = std::make_unique<std::thread>([this]() {
+        do {
+            cdc_trans->process_once();
+        } while (!exit_thread);
+    });
 }
+
 
 DriveNode::~DriveNode() {
     // 请求线程退出并等待其结束，保证安全关闭
@@ -50,6 +60,8 @@ void DriveNode::publishState(const state_pack_t* arm_state) {
 }
 void DriveNode::subscribStarget(const robot_interfaces::msg::MotorTarget &msg)
 {
+    pack.pack_type = 1;
+    // /////////////
     pack.rob01.except_pos = msg.except_pos;
     pack.rob01.except_omega = msg.except_omega;
     pack.rob01.except_torque = msg.except_torque;

@@ -8,39 +8,96 @@
 
 using namespace std::chrono_literals;
 
+
 ArmCalcNode::ArmCalcNode() : rclcpp::Node("arm_calc_node"),
-    chain(),  
-    fk_solver(std::make_unique<KDL::ChainFkSolverPos_recursive>(chain)),
-    ik_pos_solver(std::make_unique<KDL::ChainIkSolverPos_LMA>(chain, Eigen::Vector<double,6>(1.0, 1.0, 1.0, 0.0, 0.0, 0.0), 1e-6, 150, 1e-10)),
-    jacobain_solver(std::make_unique<KDL::ChainJntToJacSolver>(chain)),
     _temp_joint4_array(4),
     last_exp_joint_pos(4),
     temp_jacobain(4)
 {
+ 
     robot_description_param_ = std::make_shared<rclcpp::SyncParametersClient>(this, "/robot_state_publisher");
+
     auto params = robot_description_param_->get_parameters({"robot_description"});
     urdf_xml    = params[0].as_string();
-       if (urdf_xml.empty()) {
+    if (urdf_xml.empty()) {
         RCLCPP_ERROR(this->get_logger(), "无法读取URDF文件，不能进行动力学计算");
         return;
-    }else{
+    } else {
         RCLCPP_INFO(this->get_logger(), "URDF文件读取成功");
     }
     kdl_parser::treeFromString(urdf_xml, tree);
-    tree.getChain("base_link", "link4", chain);
-    // chain.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotZ), KDL::Frame(KDL::Rotation::Identity(), KDL::Vector(0.096, 0, 0.0))));
-    // chain.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotY), KDL::Frame(KDL::Rotation::RPY(-M_PI/2, 0, 0), 
-    // KDL::Vector(0.3275, 0, 0))));
-    // chain.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotY), KDL::Frame(KDL::Rotation::Identity(), KDL::Vector(0.34, 0, 0))));
-    // chain.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotY), KDL::Frame(KDL::Rotation::Identity(), KDL::Vector(0.17, 0, 0))));
-    // chain.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotY), KDL::Frame(KDL::Rotation::Identity(), KDL::Vector(0.07, 0, 0))));
-    // q_min(0) = -M_PI;  // 电机0：-180°
-    // q_max(0) = M_PI;   // 电机0：180°
-    // q_min(2) = 0;      // 舵机2：0°
-    // q_max(2) = M_PI;   // 舵机2：180
+    if (tree.getChain("base_link", "link4", chain)) {
+        RCLCPP_INFO(this->get_logger(), "KDL链提取成功，关节数：%d", chain.getNrOfJoints());
+        init_kdl_solvers();
+    } else {
+        RCLCPP_ERROR(this->get_logger(), "提取KDL链失败（base_link→link4）");
+        return;
+    }
+
+    motor_target_pub = this->create_publisher<robot_interfaces::msg::MotorTarget>("motor_target", 10);
+    this->timmer = this->create_wall_timer(50ms, std::bind(&ArmCalcNode::updata, this));
+
+    motor_state_sub = this->create_subscription<robot_interfaces::msg::MotorState>(
+        "motor_state", 10, [this](const robot_interfaces::msg::MotorState& msg){
+        joint_pos[0] = msg.gmpositions; 
+        joint_pos[1] = msg.pos;          
+        joint_pos[2] = std::clamp(msg.upper / 20000.0 * 180.0, 0.0, 180.0);
+        joint_pos[3] = std::clamp(msg.lower / 20000.0 * 180.0, 0.0, 180.0);
+        joint_vel[0] = msg.gmvel;
+        joint_vel[1] = msg.vel;
+
+        motor_target.except_torque = msg.torque;
+        target_joint_omega[0] = msg.gmvel;
+        target_joint_omega[1] = msg.vel;
+        current_end_pos = arm_end_pos(joint_pos);
+        current_end_vel = arm_end_vel(joint_pos, joint_vel);
+        update_flight_trajectory(current_end_pos, current_end_vel, exp_end_pos, traj_total_time);
+    }); 
+
+    this->declare_parameter("exp_end_pos[0]", 0.0);
+    this->declare_parameter("exp_end_pos[1]", 0.0);
+    this->declare_parameter("exp_end_pos[2]", 0.0);
+    
+    this->get_parameter("exp_end_pos[0]", exp_end_pos[0]);
+    this->get_parameter("exp_end_pos[1]", exp_end_pos[1]);
+    this->get_parameter("exp_end_pos[2]", exp_end_pos[2]);
+    RCLCPP_INFO(this->get_logger(), "1111111111111111111111111111111111111111111111111 x=%.3f, y=%.3f, z=%.3f",
+                exp_end_pos[0], exp_end_pos[1], exp_end_pos[2]);
+
+  
+    param_server = this->add_on_set_parameters_callback([this](const std::vector<rclcpp::Parameter>& params) {
+        rcl_interfaces::msg::SetParametersResult result;
+        result.successful = true;
+        RCLCPP_INFO(this->get_logger(), "更新参数");
+        std::string name;
+        for (const auto& param : params) {
+            name = param.get_name();
+            if (name == "exp_end_pos[0]") {
+                RCLCPP_INFO(this->get_logger(), "x更新");
+                exp_end_pos[0] = param.as_double();
+            }
+            if (name == "exp_end_pos[1]") {
+                RCLCPP_INFO(this->get_logger(), "y更新");
+                exp_end_pos[1] = param.as_double();
+            }
+            if (name == "exp_end_pos[2]") {
+                RCLCPP_INFO(this->get_logger(), "z更新");
+                exp_end_pos[2] = param.as_double();
+            }
+        }
+        return result;
+    });
+
+    q_min.resize(4);
+    q_max.resize(4);
+    q_min(0) = -M_PI;  // 电机0：-180°
+    q_max(0) = M_PI;   // 电机0：180°
+    q_min(2) = 0;      // 舵机2：0°
+    q_max(2) = M_PI;   // 舵机2：180°
 }
+
 ArmCalcNode::ArmCalcNode(KDL::Chain& chain) : rclcpp::Node("arm_calc_node"),
-  chain(),  
+    chain(),  
     fk_solver(std::make_unique<KDL::ChainFkSolverPos_recursive>(chain)),
     ik_pos_solver(std::make_unique<KDL::ChainIkSolverPos_LMA>(chain, Eigen::Vector<double,6>(1.0, 1.0, 1.0, 0.0, 0.0, 0.0), 1e-6, 150, 1e-10)),
     jacobain_solver(std::make_unique<KDL::ChainJntToJacSolver>(chain)),
@@ -50,25 +107,24 @@ ArmCalcNode::ArmCalcNode(KDL::Chain& chain) : rclcpp::Node("arm_calc_node"),
 {
     motor_target_pub = this->create_publisher<robot_interfaces::msg::MotorTarget>("motor_target", 10);
     this->create_wall_timer(50ms, std::bind(&ArmCalcNode::updata, this));
-    // 初始化订阅者
     motor_state_sub = this->create_subscription<robot_interfaces::msg::MotorState>(
         "motor_state", 10, [this](const robot_interfaces::msg::MotorState& msg){
-    joint_pos[0] = msg.gmpositions; 
-    joint_pos[1] = msg.pos;          
-    joint_pos[2] = std::clamp(msg.upper / 20000.0 * 180.0, 0.0, 180.0);
-    joint_pos[3] = std::clamp(msg.lower / 20000.0 * 180.0, 0.0, 180.0);
-    joint_vel[0] = msg.gmvel;
-    joint_vel[1] = msg.vel;
+        joint_pos[0] = msg.gmpositions; 
+        joint_pos[1] = msg.pos;          
+        joint_pos[2] = std::clamp(msg.upper / 20000.0 * 180.0, 0.0, 180.0);
+        joint_pos[3] = std::clamp(msg.lower / 20000.0 * 180.0, 0.0, 180.0);
+        joint_vel[0] = msg.gmvel;
+        joint_vel[1] = msg.vel;
 
-    motor_target.except_torque = msg.torque;
-    target_joint_omega[0] = msg.gmvel;
-    target_joint_omega[1] = msg.vel;
-}); 
+        motor_target.except_torque = msg.torque;
+        target_joint_omega[0] = msg.gmvel;
+        target_joint_omega[1] = msg.vel;
+    }); 
 
-        this->declare_parameter("exp_end_pos[0]", 0.0);
-        this->declare_parameter("exp_end_pos[1]", 0.0);
-        this->declare_parameter("exp_end_pos[2]", 0.0);
-        param_server = this->add_on_set_parameters_callback([this](const std::vector<rclcpp::Parameter>& params) {
+    this->declare_parameter("exp_end_pos[0]", 0.0);
+    this->declare_parameter("exp_end_pos[1]", 0.0);
+    this->declare_parameter("exp_end_pos[2]", 0.0);
+    param_server = this->add_on_set_parameters_callback([this](const std::vector<rclcpp::Parameter>& params) {
         rcl_interfaces::msg::SetParametersResult result;
         result.successful = true;
         RCLCPP_INFO(this->get_logger(), "更新参数");
@@ -87,32 +143,26 @@ ArmCalcNode::ArmCalcNode(KDL::Chain& chain) : rclcpp::Node("arm_calc_node"),
                 RCLCPP_INFO(this->get_logger(), "z更新");
                exp_end_pos[2] = param.as_double();
             }
-}
-return result;
-} 
-);
+        }
+        return result;
+    });
     this->get_parameter("exp_end_pos[0]", exp_end_pos[0]);
     this->get_parameter("exp_end_pos[1]", exp_end_pos[1]);
     this->get_parameter("exp_end_pos[2]", exp_end_pos[2]);
 
-     _temp_joint4_array.resize(4);
-     last_exp_joint_pos.resize(4);
+    _temp_joint4_array.resize(4);
+    last_exp_joint_pos.resize(4);
 }
 
 void ArmCalcNode::updata()
 { 
- //2   
-    current_end_pos = arm_end_pos(joint_pos);
-    current_end_vel = arm_end_vel(joint_pos, joint_vel);
-    update_flight_trajectory(current_end_pos, current_end_vel, exp_end_pos, traj_total_time);
-//3
+
+
     int result = 0;
     bool success = false;
-    std::tie(target_end_pos, target_end_vel, target_end_acc) = get_target(current_t, success);
+    std::tie(target_end_pos, target_end_vel, target_end_acc) = get_target(traj_total_time,success);
     target_joint_pos = joints_pos(target_end_pos, &result);
 
-//4
-   
     motor_target.except_pos = target_joint_pos[1];
     motor_target.gm_except_position = target_joint_pos[0];
     motor_target.except_omega = target_joint_omega[1];
@@ -121,21 +171,19 @@ void ArmCalcNode::updata()
     motor_target.except_up = target_joint_pos[2]*20000/180;
     motor_target.except_low = target_joint_pos[3]*20000/180;
     motor_target_pub->publish(motor_target);
-
  
 }
-
 
 static inline double get_quintic_value(const ArmCalcNode::QuinticLineParam_t& line, const double time) {
     return line.a + line.b * time + line.c * time * time + line.d * time * time * time + line.e * time * time * time * time
          + line.f * time * time * time * time * time;
 }
 
-
 static inline double get_quintic_dt(const ArmCalcNode::QuinticLineParam_t& line, const double time) {
     return line.b + 2.0f * line.c * time + 3.0f * line.d * time * time + 4.0f * line.e * time * time * time
          + 5.0f * line.f * time * time * time * time;
 }
+
 static inline double get_quintic_dtdt(const ArmCalcNode::QuinticLineParam_t& line, const double time) {
     return 2.0f * line.c + 6.0f * line.d * time + 12.0f * line.e * time * time + 20.0f * line.f * time * time * time;
 }
@@ -153,7 +201,6 @@ void ArmCalcNode::update_flight_trajectory(
 
     flight_trajectory_is_available = true;
 }
-
 
 void ArmCalcNode::set_quintic(QuinticLineParam_t& seg,
                              double p0, double v0, double a0,
@@ -180,7 +227,6 @@ std::tuple<Vector3D, Vector3D, Vector3D> ArmCalcNode::get_target(double time, bo
     Vector3D pos, vel, acc;
     success = false;
     if (flight_trajectory_is_available) {
-        // 限制时间范围
         double t = std::clamp(time, 0.0, flight_trajectory.time);
         success = (t < flight_trajectory.time);
 
@@ -200,13 +246,12 @@ std::tuple<Vector3D, Vector3D, Vector3D> ArmCalcNode::get_target(double time, bo
     return std::make_tuple(pos, vel, acc);
 }
 
-// 机械臂正解：关节角度→末端位置（复用原有KDL逻辑）
 Vector3D ArmCalcNode::arm_end_pos(const Eigen::Vector4d& joint_rad)
 {
     KDL::Frame frame;
     _temp_joint4_array(0) = joint_rad[0];
     _temp_joint4_array(1) = joint_rad[1];
-    _temp_joint4_array(2) = joint_rad[2] * M_PI / 180.0;  // 舵机角度转弧度
+    _temp_joint4_array(2) = joint_rad[2] * M_PI / 180.0;
     _temp_joint4_array(3) = joint_rad[3] * M_PI / 180.0;
 
     fk_solver->JntToCart(_temp_joint4_array, frame);
@@ -219,7 +264,6 @@ Vector3D ArmCalcNode::arm_end_pos(const Eigen::Vector4d& joint_rad)
     return temp;
 }
 
-// 机械臂速度正解：关节角速度→末端速度（复用雅可比矩阵）
 Vector3D ArmCalcNode::arm_end_vel(const Eigen::Vector4d& joint_rad, const Vector2D& joint_omega)
 {
     _temp_joint4_array(0) = joint_rad[0];
@@ -229,27 +273,27 @@ Vector3D ArmCalcNode::arm_end_vel(const Eigen::Vector4d& joint_rad, const Vector
 
     jacobain_solver->JntToJac(_temp_joint4_array, temp_jacobain);
 
-    // 提取位置相关雅可比矩阵（3x2），仅取前两轴速度（电机）
     Eigen::Matrix<double, 3, 2> jacobian;
     jacobian.block<3,2>(0,0) = temp_jacobain.data.block<3,2>(0,0);
 
     return jacobian * joint_omega;
 }
 
-// 机械臂逆解：末端位置→关节角度（复用原有KDL逻辑）
 Eigen::Vector4d ArmCalcNode::joints_pos(const Vector3D& end_pos, int* result)
 {
     KDL::Frame frame;
     frame.p.x(end_pos[0]);
     frame.p.y(end_pos[1]);
     frame.p.z(end_pos[2]);
-    frame.M = KDL::Rotation::Identity();
+    frame.M = KDL::Rotation(1, 0, 0,   
+                            0, 1, 0,   
+                            0, 0, -1);
 
     *result = ik_pos_solver->CartToJnt(last_exp_joint_pos, frame, _temp_joint4_array);
     if (*result == 0) {
-        last_exp_joint_pos = _temp_joint4_array;  // 缓存成功解
+        last_exp_joint_pos = _temp_joint4_array;
     } else {
-        _temp_joint4_array = last_exp_joint_pos;  // 失败则用上次解
+        _temp_joint4_array = last_exp_joint_pos;
     }
 
     Eigen::Vector4d joint_pos;
